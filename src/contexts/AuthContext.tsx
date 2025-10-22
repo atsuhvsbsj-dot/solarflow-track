@@ -26,10 +26,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is stored in localStorage
+    // Check if user is stored in localStorage with session expiry
     const storedUser = localStorage.getItem("solar_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const sessionExpiry = localStorage.getItem("solar_session_expiry");
+    
+    if (storedUser && sessionExpiry) {
+      const expiryTime = parseInt(sessionExpiry);
+      const currentTime = new Date().getTime();
+      
+      // Check if session has expired (30 minutes)
+      if (currentTime < expiryTime) {
+        setUser(JSON.parse(storedUser));
+      } else {
+        // Session expired, clear storage
+        localStorage.removeItem("solar_user");
+        localStorage.removeItem("solar_session_expiry");
+      }
     }
   }, []);
 
@@ -39,7 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (userCreds && userCreds.password === password) {
       const loggedInUser = { username, role: userCreds.role };
       setUser(loggedInUser);
+      
+      // Set session expiry to 30 minutes from now
+      const expiryTime = new Date().getTime() + 30 * 60 * 1000;
       localStorage.setItem("solar_user", JSON.stringify(loggedInUser));
+      localStorage.setItem("solar_session_expiry", expiryTime.toString());
+      
       navigate("/dashboard");
       return true;
     }
@@ -49,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem("solar_user");
+    localStorage.removeItem("solar_session_expiry");
     navigate("/");
   };
 

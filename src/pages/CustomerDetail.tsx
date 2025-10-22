@@ -19,14 +19,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download, FileText } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { calculateCustomerProgress } from "@/utils/progressUtils";
+import { exportCustomerReport } from "@/utils/exportUtils";
+import { useToast } from "@/hooks/use-toast";
 
 const CustomerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const customer = mockCustomers.find((c) => c.id === id);
+  const progress = id ? calculateCustomerProgress(id) : 0;
 
   if (!customer) {
     return (
@@ -41,22 +47,67 @@ const CustomerDetail = () => {
 
   const customerDocs = mockDocuments.filter((d) => d.customerId === id);
   const customerChecklist = mockChecklist.filter((c) => c.customerId === id);
-  const wiringDetails = mockWiring[id];
+  const wiringDetails = id ? mockWiring[id] : undefined;
   const inspections = mockInspections.filter((i) => i.customerId === id);
-  const commissioning = mockCommissioning[id];
+  const commissioning = id ? mockCommissioning[id] : undefined;
+
+  const handleExportReport = () => {
+    if (customer) {
+      exportCustomerReport(customer);
+      toast({
+        title: "Report Exported",
+        description: "Customer report has been downloaded successfully",
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate("/customers")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">{customer.name}</h2>
-          <p className="text-muted-foreground">{customer.consumerNumber}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => navigate("/customers")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">{customer.name}</h2>
+            <p className="text-muted-foreground">{customer.consumerNumber}</p>
+          </div>
         </div>
+        <Button variant="outline" onClick={handleExportReport}>
+          <Download className="h-4 w-4 mr-2" />
+          Export Report
+        </Button>
       </div>
+
+      <Card className="bg-gradient-to-r from-primary/10 to-accent/10">
+        <CardContent className="pt-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">Project Progress</h3>
+              <Badge
+                className={
+                  progress === 100
+                    ? "bg-success text-success-foreground"
+                    : progress > 0
+                    ? "bg-warning text-warning-foreground"
+                    : "bg-muted text-muted-foreground"
+                }
+              >
+                {progress}% Complete
+              </Badge>
+            </div>
+            <Progress value={progress} className="h-3" />
+            <p className="text-sm text-muted-foreground">
+              {progress === 100
+                ? "Project completed successfully!"
+                : progress > 0
+                ? "Project is in progress"
+                : "Project not yet started"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -100,7 +151,17 @@ const CustomerDetail = () => {
         <TabsContent value="documents">
           <Card>
             <CardHeader>
-              <CardTitle>Documents</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Documents</CardTitle>
+                <div className="flex gap-2 text-sm">
+                  <Badge className="bg-success text-success-foreground">
+                    {customerDocs.filter((d) => d.uploaded).length} Uploaded
+                  </Badge>
+                  <Badge variant="outline">
+                    {customerDocs.filter((d) => !d.uploaded).length} Pending
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -111,22 +172,33 @@ const CustomerDetail = () => {
                     <TableHead>Upload Date</TableHead>
                     <TableHead>Done By</TableHead>
                     <TableHead>Submitted To</TableHead>
+                    <TableHead>Notes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {customerDocs.map((doc) => (
                     <TableRow key={doc.id}>
-                      <TableCell className="font-medium">{doc.name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          {doc.name}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {doc.uploaded ? (
-                          <Badge className="bg-success text-success-foreground">Uploaded</Badge>
+                          <Badge className="bg-success text-success-foreground">✓ Uploaded</Badge>
                         ) : (
-                          <Badge variant="outline">Pending</Badge>
+                          <Badge className="bg-destructive text-destructive-foreground">
+                            ✗ Pending
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>{doc.uploadDate || "-"}</TableCell>
                       <TableCell>{doc.doneBy || "-"}</TableCell>
                       <TableCell>{doc.submittedTo || "-"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {doc.notes || "-"}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -138,9 +210,33 @@ const CustomerDetail = () => {
         <TabsContent value="checklist">
           <Card>
             <CardHeader>
-              <CardTitle>Process Checklist</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Process Checklist</CardTitle>
+                <div className="flex gap-2">
+                  <Badge className="bg-success text-success-foreground">
+                    {customerChecklist.filter((c) => c.status === "completed").length} Completed
+                  </Badge>
+                  <Badge className="bg-warning text-warning-foreground">
+                    {customerChecklist.filter((c) => c.status === "in_progress").length} In
+                    Progress
+                  </Badge>
+                  <Badge variant="outline">
+                    {customerChecklist.filter((c) => c.status === "pending").length} Pending
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <Progress
+                  value={
+                    (customerChecklist.filter((c) => c.status === "completed").length /
+                      customerChecklist.length) *
+                    100
+                  }
+                  className="h-2"
+                />
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -158,7 +254,7 @@ const CustomerDetail = () => {
                       <TableCell>
                         <StatusBadge status={item.status} />
                       </TableCell>
-                      <TableCell>{item.remark || "-"}</TableCell>
+                      <TableCell className="text-sm">{item.remark || "-"}</TableCell>
                       <TableCell>{item.doneBy || "-"}</TableCell>
                       <TableCell>{item.date || "-"}</TableCell>
                     </TableRow>
