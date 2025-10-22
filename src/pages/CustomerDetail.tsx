@@ -1,0 +1,338 @@
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  mockCustomers,
+  mockDocuments,
+  mockChecklist,
+  mockWiring,
+  mockInspections,
+  mockCommissioning,
+} from "@/data/mockData";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ArrowLeft } from "lucide-react";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
+
+const CustomerDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const customer = mockCustomers.find((c) => c.id === id);
+
+  if (!customer) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <p className="text-muted-foreground">Customer not found</p>
+        <Button onClick={() => navigate("/customers")} className="mt-4">
+          Back to Customers
+        </Button>
+      </div>
+    );
+  }
+
+  const customerDocs = mockDocuments.filter((d) => d.customerId === id);
+  const customerChecklist = mockChecklist.filter((c) => c.customerId === id);
+  const wiringDetails = mockWiring[id];
+  const inspections = mockInspections.filter((i) => i.customerId === id);
+  const commissioning = mockCommissioning[id];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="sm" onClick={() => navigate("/customers")}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h2 className="text-3xl font-bold text-foreground">{customer.name}</h2>
+          <p className="text-muted-foreground">{customer.consumerNumber}</p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Customer Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Mobile</p>
+              <p className="font-medium">{customer.mobile}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">System Capacity</p>
+              <p className="font-medium">{customer.systemCapacity} kW</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Order Amount</p>
+              <p className="font-medium">₹{customer.orderAmount.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Order Date</p>
+              <p className="font-medium">{new Date(customer.orderDate).toLocaleDateString()}</p>
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-sm text-muted-foreground">Address</p>
+              <p className="font-medium">{customer.address}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="documents" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="checklist">Checklist</TabsTrigger>
+          <TabsTrigger value="wiring">Wiring</TabsTrigger>
+          <TabsTrigger value="inspection">Inspection</TabsTrigger>
+          <TabsTrigger value="commissioning">Commissioning</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="documents">
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Upload Date</TableHead>
+                    <TableHead>Done By</TableHead>
+                    <TableHead>Submitted To</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customerDocs.map((doc) => (
+                    <TableRow key={doc.id}>
+                      <TableCell className="font-medium">{doc.name}</TableCell>
+                      <TableCell>
+                        {doc.uploaded ? (
+                          <Badge className="bg-success text-success-foreground">Uploaded</Badge>
+                        ) : (
+                          <Badge variant="outline">Pending</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{doc.uploadDate || "-"}</TableCell>
+                      <TableCell>{doc.doneBy || "-"}</TableCell>
+                      <TableCell>{doc.submittedTo || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="checklist">
+          <Card>
+            <CardHeader>
+              <CardTitle>Process Checklist</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Remark</TableHead>
+                    <TableHead>Done By</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customerChecklist.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.task}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={item.status} />
+                      </TableCell>
+                      <TableCell>{item.remark || "-"}</TableCell>
+                      <TableCell>{item.doneBy || "-"}</TableCell>
+                      <TableCell>{item.date || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="wiring">
+          <Card>
+            <CardHeader>
+              <CardTitle>Wiring & Technical Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {wiringDetails ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Technician Name</p>
+                    <p className="font-medium">{wiringDetails.technicianName || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Start Date</p>
+                    <p className="font-medium">{wiringDetails.startDate || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">End Date</p>
+                    <p className="font-medium">{wiringDetails.endDate || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">PV Module No.</p>
+                    <p className="font-medium">{wiringDetails.pvModuleNo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Aggregate Capacity</p>
+                    <p className="font-medium">
+                      {wiringDetails.aggregateCapacity
+                        ? `${wiringDetails.aggregateCapacity} kWp`
+                        : "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Inverter Type</p>
+                    <p className="font-medium">{wiringDetails.inverterType || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">AC Voltage</p>
+                    <p className="font-medium">{wiringDetails.acVoltage || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Mounting Structure</p>
+                    <p className="font-medium">{wiringDetails.mountingStructure || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">DCDB</p>
+                    <p className="font-medium">{wiringDetails.dcdb || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">ACDB</p>
+                    <p className="font-medium">{wiringDetails.acdb || "-"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-muted-foreground">Cables</p>
+                    <p className="font-medium">{wiringDetails.cables || "-"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No wiring details available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="inspection">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quality Control & Inspection</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inspections.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead>Inward No.</TableHead>
+                      <TableHead>QC Name</TableHead>
+                      <TableHead>Inspection Date</TableHead>
+                      <TableHead>Approved</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inspections.map((inspection) => (
+                      <TableRow key={inspection.id}>
+                        <TableCell className="font-medium">{inspection.document}</TableCell>
+                        <TableCell>
+                          {inspection.submitted ? (
+                            <Badge className="bg-success text-success-foreground">Yes</Badge>
+                          ) : (
+                            <Badge variant="outline">No</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{inspection.inwardNo || "-"}</TableCell>
+                        <TableCell>{inspection.qcName || "-"}</TableCell>
+                        <TableCell>{inspection.inspectionDate || "-"}</TableCell>
+                        <TableCell>
+                          {inspection.approved ? (
+                            <Badge className="bg-success text-success-foreground">Yes</Badge>
+                          ) : (
+                            <Badge variant="outline">No</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground">No inspection data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="commissioning">
+          <Card>
+            <CardHeader>
+              <CardTitle>Commissioning Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {commissioning ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Release Order Date</p>
+                    <p className="font-medium">{commissioning.releaseOrderDate || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Release Order Number</p>
+                    <p className="font-medium">{commissioning.releaseOrderNumber || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Meter Fitting Date</p>
+                    <p className="font-medium">{commissioning.meterFittingDate || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Generation Meter No.</p>
+                    <p className="font-medium">{commissioning.generationMeterNo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Adani Meter No.</p>
+                    <p className="font-medium">{commissioning.adaniMeterNo || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">System Start Date</p>
+                    <p className="font-medium">{commissioning.systemStartDate || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Subsidy Received Date</p>
+                    <p className="font-medium">{commissioning.subsidyReceivedDate || "-"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-muted-foreground">Commissioning Report</p>
+                    <p className="font-medium">{commissioning.commissioningReport || "-"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No commissioning data available</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default CustomerDetail;
