@@ -19,6 +19,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const DEMO_USERS = {
   admin: { password: "admin123", role: "admin" as const },
   employee: { password: "employee123", role: "employee" as const },
+  shreya: { password: "shreya123", role: "employee" as const },
+  rahul: { password: "rahul123", role: "employee" as const },
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -57,7 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("solar_user", JSON.stringify(loggedInUser));
       localStorage.setItem("solar_session_expiry", expiryTime.toString());
       
-      navigate("/dashboard");
+      // Navigate based on role
+      if (userCreds.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/my-projects");
+      }
       return true;
     }
     return false;

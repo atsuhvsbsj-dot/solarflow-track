@@ -14,6 +14,9 @@ import Documents from "./pages/Documents";
 import Checklists from "./pages/Checklists";
 import Wiring from "./pages/Wiring";
 import Inspection from "./pages/Inspection";
+import Employees from "./pages/Employees";
+import MyProjects from "./pages/MyProjects";
+import ActivityLog from "./pages/ActivityLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,6 +96,36 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Inspection />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/employees"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Employees />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-projects"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MyProjects />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity-log"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ActivityLog />
                   </Layout>
                 </ProtectedRoute>
               }

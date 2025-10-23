@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockCustomers } from "@/data/mockData";
+import { mockCustomers, mockEmployees } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Plus, Eye, Download, Filter } from "lucide-react";
+import { Search, Plus, Download, Filter, Lock } from "lucide-react";
 import { CustomerModal } from "@/components/CustomerModal";
 import { calculateCustomerProgress } from "@/utils/progressUtils";
 import { exportToExcel } from "@/utils/exportUtils";
@@ -23,11 +24,36 @@ const Customers = () => {
   const [sortBy, setSortBy] = useState<string>("name");
   const [modalOpen, setModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const customersWithProgress = mockCustomers.map((customer) => ({
+  const isAdmin = user?.role === "admin";
+
+  // Filter customers based on role
+  const employee = mockEmployees.find((emp) => emp.email.startsWith(user?.username || ""));
+  const visibleCustomers = isAdmin
+    ? mockCustomers
+    : mockCustomers.filter((customer) => employee?.assignedCustomers.includes(customer.id));
+
+  const customersWithProgress = visibleCustomers.map((customer) => ({
     ...customer,
     progress: calculateCustomerProgress(customer.id),
   }));
+
+  const getAssignedEmployeeName = (customerId: string) => {
+    const customer = mockCustomers.find((c) => c.id === customerId);
+    if (!customer?.assignedTo) return "Unassigned";
+    const employee = mockEmployees.find((emp) => emp.id === customer.assignedTo);
+    return employee?.name || "Unknown";
+  };
+
+  const getApprovalStatusBadge = (status: string) => {
+    const variants: Record<string, string> = {
+      pending: "bg-warning text-warning-foreground",
+      verified: "bg-blue-500 text-white",
+      completed: "bg-success text-success-foreground",
+    };
+    return <Badge className={variants[status] || ""}>{status}</Badge>;
+  };
 
   let filteredCustomers = customersWithProgress.filter(
     (customer) =>
@@ -76,10 +102,12 @@ const Customers = () => {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Customer
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Customer
+            </Button>
+          )}
         </div>
       </div>
 
@@ -118,7 +146,10 @@ const Customers = () => {
           >
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span className="text-lg">{customer.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{customer.name}</span>
+                  {customer.locked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                </div>
                 <Badge
                   className={
                     customer.progress === 100
@@ -155,6 +186,19 @@ const Customers = () => {
                   {new Date(customer.orderDate).toLocaleDateString()}
                 </span>
               </div>
+
+              {isAdmin && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Assigned To:</span>
+                    <span className="font-medium">{getAssignedEmployeeName(customer.id)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Status:</span>
+                    {getApprovalStatusBadge(customer.approvalStatus)}
+                  </div>
+                </>
+              )}
 
               <div className="space-y-1 pt-2">
                 <div className="flex justify-between text-xs">

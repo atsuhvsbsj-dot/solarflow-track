@@ -9,6 +9,9 @@ import {
   ClipboardCheck,
   LogOut,
   Sun,
+  UserCog,
+  Briefcase,
+  Activity,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,17 +27,30 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Customers", url: "/customers", icon: Users },
-  { title: "Documents", url: "/documents", icon: FileText },
-  { title: "Checklists", url: "/checklists", icon: CheckSquare },
-  { title: "Wiring", url: "/wiring", icon: Zap },
-  { title: "QC / Inspection", url: "/inspection", icon: ClipboardCheck },
-];
-
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { logout, user } = useAuth();
+
+  const adminMenuItems = [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Employees", url: "/employees", icon: UserCog },
+    { title: "Customers", url: "/customers", icon: Users },
+    { title: "Documents", url: "/documents", icon: FileText },
+    { title: "Checklists", url: "/checklists", icon: CheckSquare },
+    { title: "Wiring", url: "/wiring", icon: Zap },
+    { title: "QC / Inspection", url: "/inspection", icon: ClipboardCheck },
+    { title: "Activity Log", url: "/activity-log", icon: Activity },
+  ];
+
+  const employeeMenuItems = [
+    { title: "My Projects", url: "/my-projects", icon: Briefcase },
+    { title: "Customers", url: "/customers", icon: Users },
+    { title: "Documents", url: "/documents", icon: FileText },
+    { title: "Checklists", url: "/checklists", icon: CheckSquare },
+    { title: "Wiring", url: "/wiring", icon: Zap },
+    { title: "QC / Inspection", url: "/inspection", icon: ClipboardCheck },
+  ];
+
+  const menuItems = user?.role === "admin" ? adminMenuItems : employeeMenuItems;
 
   return (
     <SidebarProvider>
@@ -76,7 +92,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1">
                 <p className="text-sm font-medium text-sidebar-foreground">{user?.username}</p>
-                <p className="text-xs text-sidebar-foreground/70 capitalize">{user?.role}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-sidebar-foreground/70 capitalize">{user?.role}</p>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      user?.role === "admin"
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {user?.role === "admin" ? "👑 Admin" : "🧑‍💻 Employee"}
+                  </span>
+                </div>
               </div>
             </div>
             <Button

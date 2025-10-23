@@ -1,4 +1,26 @@
 export type Status = "pending" | "in_progress" | "completed";
+export type ApprovalStatus = "pending" | "verified" | "completed";
+
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: "pending" | "approved" | "active" | "suspended";
+  assignedCustomers: string[];
+  createdBy: string;
+  createdDate: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  user: string;
+  userId: string;
+  customerId: string;
+  section: string;
+  action: string;
+  date: string;
+}
 
 export interface Customer {
   id: string;
@@ -9,6 +31,9 @@ export interface Customer {
   systemCapacity: number;
   orderAmount: number;
   orderDate: string;
+  assignedTo?: string;
+  approvalStatus: ApprovalStatus;
+  locked: boolean;
 }
 
 export interface Document {
@@ -20,6 +45,8 @@ export interface Document {
   notes?: string;
   doneBy?: string;
   submittedTo?: string;
+  verified?: boolean;
+  verifiedBy?: string;
 }
 
 export interface ChecklistItem {
@@ -71,6 +98,80 @@ export interface Commissioning {
   commissioningReport?: string;
 }
 
+// Mock employees
+export const mockEmployees: Employee[] = [
+  {
+    id: "emp1",
+    name: "Shreya Patil",
+    email: "shreya@example.com",
+    phone: "9123456780",
+    status: "active",
+    assignedCustomers: ["1", "2"],
+    createdBy: "admin",
+    createdDate: "2024-01-10",
+  },
+  {
+    id: "emp2",
+    name: "Rahul Deshmukh",
+    email: "rahul@example.com",
+    phone: "9123456781",
+    status: "active",
+    assignedCustomers: ["3", "4"],
+    createdBy: "admin",
+    createdDate: "2024-01-12",
+  },
+  {
+    id: "emp3",
+    name: "Priya Joshi",
+    email: "priya@example.com",
+    phone: "9123456782",
+    status: "pending",
+    assignedCustomers: [],
+    createdBy: "admin",
+    createdDate: "2024-03-15",
+  },
+];
+
+// Mock activity logs
+export const mockActivities: ActivityLog[] = [
+  {
+    id: "act1",
+    user: "Shreya Patil",
+    userId: "emp1",
+    customerId: "1",
+    section: "Documents",
+    action: "Uploaded Light Bill",
+    date: "2024-03-20T14:30:00",
+  },
+  {
+    id: "act2",
+    user: "Admin",
+    userId: "admin",
+    customerId: "1",
+    section: "Documents",
+    action: "Verified Aadhaar Card",
+    date: "2024-03-20T15:45:00",
+  },
+  {
+    id: "act3",
+    user: "Rahul Deshmukh",
+    userId: "emp2",
+    customerId: "3",
+    section: "Checklist",
+    action: "Completed New Connection",
+    date: "2024-03-21T10:15:00",
+  },
+  {
+    id: "act4",
+    user: "Shreya Patil",
+    userId: "emp1",
+    customerId: "2",
+    section: "Wiring",
+    action: "Updated wiring details",
+    date: "2024-03-21T16:20:00",
+  },
+];
+
 // Mock customers
 export const mockCustomers: Customer[] = [
   {
@@ -82,6 +183,9 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 5.5,
     orderAmount: 325000,
     orderDate: "2024-01-15",
+    assignedTo: "emp1",
+    approvalStatus: "verified",
+    locked: false,
   },
   {
     id: "2",
@@ -92,6 +196,9 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 3.3,
     orderAmount: 195000,
     orderDate: "2024-02-10",
+    assignedTo: "emp1",
+    approvalStatus: "pending",
+    locked: false,
   },
   {
     id: "3",
@@ -102,6 +209,9 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 7.2,
     orderAmount: 425000,
     orderDate: "2024-01-28",
+    assignedTo: "emp2",
+    approvalStatus: "verified",
+    locked: false,
   },
   {
     id: "4",
@@ -112,6 +222,9 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 2.5,
     orderAmount: 145000,
     orderDate: "2024-03-05",
+    assignedTo: "emp2",
+    approvalStatus: "pending",
+    locked: false,
   },
   {
     id: "5",
@@ -122,6 +235,8 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 10.0,
     orderAmount: 580000,
     orderDate: "2024-02-20",
+    approvalStatus: "completed",
+    locked: true,
   },
   {
     id: "6",
@@ -132,6 +247,8 @@ export const mockCustomers: Customer[] = [
     systemCapacity: 4.8,
     orderAmount: 285000,
     orderDate: "2024-03-12",
+    approvalStatus: "pending",
+    locked: false,
   },
 ];
 
@@ -143,8 +260,10 @@ export const mockDocuments: Document[] = [
     name: "Aadhaar Card",
     uploaded: true,
     uploadDate: "2024-01-16",
-    doneBy: "Admin",
+    doneBy: "Shreya Patil",
     submittedTo: "MSEDCL",
+    verified: true,
+    verifiedBy: "Admin",
   },
   {
     id: "d2",
@@ -152,8 +271,10 @@ export const mockDocuments: Document[] = [
     name: "Light Bill",
     uploaded: true,
     uploadDate: "2024-01-16",
-    doneBy: "Admin",
+    doneBy: "Shreya Patil",
     submittedTo: "MSEDCL",
+    verified: true,
+    verifiedBy: "Admin",
   },
   {
     id: "d3",

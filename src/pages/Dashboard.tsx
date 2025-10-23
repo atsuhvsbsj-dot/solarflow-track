@@ -1,14 +1,24 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { mockCustomers, mockDocuments, mockChecklist } from "@/data/mockData";
-import { Users, FileWarning, Clock, CheckCircle, Search, Download, Filter } from "lucide-react";
+import { mockCustomers, mockEmployees, mockActivities } from "@/data/mockData";
+import {
+  Users,
+  FileWarning,
+  Clock,
+  CheckCircle,
+  Search,
+  Download,
+  UserCog,
+  Activity,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusChart } from "@/components/StatusChart";
 import { calculateCustomerProgress, getProjectStatus } from "@/utils/progressUtils";
 import { exportToExcel } from "@/utils/exportUtils";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -22,9 +32,12 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === "admin";
 
   const totalCustomers = mockCustomers.length;
-  const pendingDocs = mockDocuments.filter((d) => !d.uploaded).length;
+  const totalEmployees = mockEmployees.filter((emp) => emp.status === "active").length;
 
   // Calculate project statuses based on progress
   const customersWithProgress = mockCustomers.map((customer) => ({
@@ -37,6 +50,9 @@ const Dashboard = () => {
   const inProgressProjects = customersWithProgress.filter((c) => c.status === "in_progress")
     .length;
   const completedProjects = customersWithProgress.filter((c) => c.status === "completed").length;
+  const pendingDocs = customersWithProgress.filter((c) => c.progress < 30).length;
+
+  const recentActivities = mockActivities.slice(0, 5);
 
   // Apply filters
   let filteredCustomers = customersWithProgress.filter((customer) =>
@@ -65,13 +81,22 @@ const Dashboard = () => {
     exportToExcel(filteredCustomers);
   };
 
-  const stats = [
+  const adminStats = [
     {
       title: "Total Customers",
       value: totalCustomers,
       icon: Users,
       color: "text-primary",
       bgColor: "bg-primary/10",
+      onClick: () => navigate("/customers"),
+    },
+    {
+      title: "Total Employees",
+      value: totalEmployees,
+      icon: UserCog,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      onClick: () => navigate("/employees"),
     },
     {
       title: "Pending Documents",
@@ -79,13 +104,7 @@ const Dashboard = () => {
       icon: FileWarning,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
-    },
-    {
-      title: "Pending Projects",
-      value: pendingProjects,
-      icon: Clock,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted",
+      onClick: () => navigate("/documents"),
     },
     {
       title: "In Progress",
@@ -93,6 +112,7 @@ const Dashboard = () => {
       icon: Clock,
       color: "text-warning",
       bgColor: "bg-warning/10",
+      onClick: () => setStatusFilter("in_progress"),
     },
     {
       title: "Commissioned",
@@ -100,26 +120,64 @@ const Dashboard = () => {
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
+      onClick: () => setStatusFilter("completed"),
     },
   ];
+
+  const employeeStats = [
+    {
+      title: "Total Customers",
+      value: totalCustomers,
+      icon: Users,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+      onClick: undefined,
+    },
+    {
+      title: "Pending Documents",
+      value: pendingDocs,
+      icon: FileWarning,
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
+      onClick: undefined,
+    },
+    {
+      title: "In Progress",
+      value: inProgressProjects,
+      icon: Clock,
+      color: "text-warning",
+      bgColor: "bg-warning/10",
+      onClick: undefined,
+    },
+    {
+      title: "Commissioned",
+      value: completedProjects,
+      icon: CheckCircle,
+      color: "text-success",
+      bgColor: "bg-success/10",
+      onClick: undefined,
+    },
+  ];
+
+  const stats = isAdmin ? adminStats : employeeStats;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your solar projects</p>
+        <p className="text-muted-foreground">
+          {isAdmin
+            ? "Overview of your solar projects and team"
+            : "Overview of your assigned projects"}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-${isAdmin ? "5" : "4"} gap-4`}>
         {stats.map((stat) => (
-          <Card 
-            key={stat.title} 
+          <Card
+            key={stat.title}
             className="cursor-pointer hover:shadow-lg transition-all"
-            onClick={() => {
-              if (stat.title === "Pending Projects") setStatusFilter("pending");
-              if (stat.title === "In Progress") setStatusFilter("in_progress");
-              if (stat.title === "Commissioned") setStatusFilter("completed");
-            }}
+            onClick={stat.onClick}
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -143,63 +201,103 @@ const Dashboard = () => {
           completed={completedProjects}
         />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Filters</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={statusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("all")}
-              >
-                All Projects
-              </Button>
-              <Button
-                variant={statusFilter === "pending" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("pending")}
-              >
-                Pending
-              </Button>
-              <Button
-                variant={statusFilter === "in_progress" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("in_progress")}
-              >
-                In Progress
-              </Button>
-              <Button
-                variant={statusFilter === "completed" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setStatusFilter("completed")}
-              >
-                Completed
-              </Button>
-            </div>
+        {isAdmin ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Recent Updates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recentActivities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm">
+                        <span className="font-medium">{activity.user}</span> {activity.action}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">
+                          {activity.section}
+                        </Badge>
+                        <span>{new Date(activity.date).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate("/activity-log")}
+                >
+                  View All Activities
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Filters</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={statusFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter("all")}
+                >
+                  All Projects
+                </Button>
+                <Button
+                  variant={statusFilter === "pending" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter("pending")}
+                >
+                  Pending
+                </Button>
+                <Button
+                  variant={statusFilter === "in_progress" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter("in_progress")}
+                >
+                  In Progress
+                </Button>
+                <Button
+                  variant={statusFilter === "completed" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter("completed")}
+                >
+                  Completed
+                </Button>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Filter by Date</label>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select date range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="7days">Last 7 Days</SelectItem>
-                  <SelectItem value="30days">Last 30 Days</SelectItem>
-                  <SelectItem value="90days">Last 90 Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Filter by Date</label>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select date range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="7days">Last 7 Days</SelectItem>
+                    <SelectItem value="30days">Last 30 Days</SelectItem>
+                    <SelectItem value="90days">Last 90 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Button variant="outline" className="w-full" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export to Excel
-            </Button>
-          </CardContent>
-        </Card>
+              <Button variant="outline" className="w-full" onClick={handleExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Export to Excel
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card>
