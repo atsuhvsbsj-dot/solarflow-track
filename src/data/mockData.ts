@@ -47,6 +47,10 @@ export interface Document {
   submittedTo?: string;
   verified?: boolean;
   verifiedBy?: string;
+  status: Status;
+  remark?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface ChecklistItem {
@@ -57,6 +61,8 @@ export interface ChecklistItem {
   remark?: string;
   doneBy?: string;
   date?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface WiringDetails {
@@ -72,6 +78,8 @@ export interface WiringDetails {
   dcdb?: string;
   acdb?: string;
   cables?: string;
+  status: Status;
+  remark?: string;
 }
 
 export interface Inspection {
@@ -84,6 +92,10 @@ export interface Inspection {
   qcName?: string;
   inspectionDate?: string;
   approved: boolean;
+  status: Status;
+  remark?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Commissioning {
@@ -96,6 +108,23 @@ export interface Commissioning {
   systemStartDate?: string;
   subsidyReceivedDate?: string;
   commissioningReport?: string;
+  status: Status;
+  remark?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface Advising {
+  id: string;
+  customerId: string;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+  remark?: string;
+  assignedTo?: string;
+  status: Status;
+  startDate?: string;
+  endDate?: string;
 }
 
 // Mock employees
@@ -264,6 +293,10 @@ export const mockDocuments: Document[] = [
     submittedTo: "MSEDCL",
     verified: true,
     verifiedBy: "Admin",
+    status: "completed",
+    remark: "Document verified and submitted",
+    startDate: "2024-01-15",
+    endDate: "2024-01-16",
   },
   {
     id: "d2",
@@ -275,12 +308,18 @@ export const mockDocuments: Document[] = [
     submittedTo: "MSEDCL",
     verified: true,
     verifiedBy: "Admin",
+    status: "completed",
+    remark: "Latest bill submitted",
+    startDate: "2024-01-15",
+    endDate: "2024-01-16",
   },
   {
     id: "d3",
     customerId: "1",
     name: "7/12 & Index 2",
     uploaded: false,
+    status: "pending",
+    remark: "Awaiting customer submission",
   },
   {
     id: "d4",
@@ -289,6 +328,8 @@ export const mockDocuments: Document[] = [
     uploaded: true,
     uploadDate: "2024-02-11",
     doneBy: "Admin",
+    status: "in_progress",
+    remark: "Pending verification",
   },
 ];
 
@@ -301,6 +342,9 @@ export const mockChecklist: ChecklistItem[] = [
     status: "completed",
     doneBy: "Admin",
     date: "2024-01-18",
+    remark: "Connection approved",
+    startDate: "2024-01-15",
+    endDate: "2024-01-18",
   },
   {
     id: "c2",
@@ -378,6 +422,8 @@ export const mockWiring: Record<string, WiringDetails> = {
     dcdb: "IP65 Enclosure",
     acdb: "IP65 Enclosure",
     cables: "4mm² DC, 6mm² AC",
+    status: "completed",
+    remark: "Wiring completed as per specifications",
   },
 };
 
@@ -393,6 +439,10 @@ export const mockInspections: Inspection[] = [
     qcName: "Quality Inspector A",
     inspectionDate: "2024-02-10",
     approved: true,
+    status: "completed",
+    remark: "Inspection passed successfully",
+    startDate: "2024-02-08",
+    endDate: "2024-02-10",
   },
 ];
 
@@ -407,5 +457,33 @@ export const mockCommissioning: Record<string, Commissioning> = {
     adaniMeterNo: "AM67890",
     systemStartDate: "2024-02-21",
     commissioningReport: "All systems operational",
+    status: "completed",
+    remark: "System commissioned successfully",
+    startDate: "2024-02-15",
+    endDate: "2024-02-21",
   },
 };
+
+export const mockAdvising: Advising[] = [
+  {
+    id: "adv1",
+    customerId: "2",
+    title: "Document Verification Pending",
+    description: "Need to verify Aadhaar card and light bill before proceeding",
+    priority: "high",
+    remark: "Customer requested expedited processing",
+    assignedTo: "emp1",
+    status: "in_progress",
+    startDate: "2024-03-10",
+  },
+  {
+    id: "adv2",
+    customerId: "3",
+    title: "Technical Site Assessment",
+    description: "Conduct roof load bearing assessment for 7.2kW system",
+    priority: "medium",
+    assignedTo: "emp2",
+    status: "pending",
+    startDate: "2024-03-15",
+  },
+];
