@@ -1,84 +1,138 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 
 interface User {
-  username: string;
+  id: string;
+  email: string;
   role: "admin" | "employee";
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  session: Session | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, role: "admin" | "employee") => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo credentials
-const DEMO_USERS = {
-  admin: { password: "admin123", role: "admin" as const },
-  employee: { password: "employee123", role: "employee" as const },
-  shreya: { password: "shreya123", role: "employee" as const },
-  rahul: { password: "rahul123", role: "employee" as const },
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is stored in localStorage with session expiry
-    const storedUser = localStorage.getItem("solar_user");
-    const sessionExpiry = localStorage.getItem("solar_session_expiry");
-    
-    if (storedUser && sessionExpiry) {
-      const expiryTime = parseInt(sessionExpiry);
-      const currentTime = new Date().getTime();
-      
-      // Check if session has expired (30 minutes)
-      if (currentTime < expiryTime) {
-        setUser(JSON.parse(storedUser));
-      } else {
-        // Session expired, clear storage
-        localStorage.removeItem("solar_user");
-        localStorage.removeItem("solar_session_expiry");
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || "",
+          role: (session.user.user_metadata?.role || "employee") as "admin" | "employee",
+        });
       }
-    }
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      (async () => {
+        setSession(session);
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || "",
+            role: (session.user.user_metadata?.role || "employee") as "admin" | "employee",
+          });
+        } else {
+          setUser(null);
+        }
+      })();
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const userCreds = DEMO_USERS[username as keyof typeof DEMO_USERS];
-    
-    if (userCreds && userCreds.password === password) {
-      const loggedInUser = { username, role: userCreds.role };
-      setUser(loggedInUser);
-      
-      // Set session expiry to 30 minutes from now
-      const expiryTime = new Date().getTime() + 30 * 60 * 1000;
-      localStorage.setItem("solar_user", JSON.stringify(loggedInUser));
-      localStorage.setItem("solar_session_expiry", expiryTime.toString());
-      
-      // Navigate based on role
-      if (userCreds.role === "admin") {
-        navigate("/dashboard");
-      } else {
-        navigate("/my-projects");
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
       }
-      return true;
+
+      if (data.user) {
+        const userRole = (data.user.user_metadata?.role || "employee") as "admin" | "employee";
+        setUser({
+          id: data.user.id,
+          email: data.user.email || "",
+          role: userRole,
+        });
+
+        if (userRole === "admin") {
+          navigate("/dashboard");
+        } else {
+          navigate("/my-projects");
+        }
+
+        return { success: true };
+      }
+
+      return { success: false, error: "Login failed" };
+    } catch (error) {
+      return { success: false, error: "An unexpected error occurred" };
     }
-    return false;
   };
 
-  const logout = () => {
+  const signup = async (
+    email: string,
+    password: string,
+    role: "admin" | "employee"
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role,
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        return { success: true };
+      }
+
+      return { success: false, error: "Signup failed" };
+    } catch (error) {
+      return { success: false, error: "An unexpected error occurred" };
+    }
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("solar_user");
-    localStorage.removeItem("solar_session_expiry");
+    setSession(null);
     navigate("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, session, loading, login, signup, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

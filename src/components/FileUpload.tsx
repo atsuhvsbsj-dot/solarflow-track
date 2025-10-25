@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Upload, Download, FileText, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { saveFile, downloadFile, deleteFile, getFile, UploadedFile } from "@/utils/fileStorage";
+import { fileUploadService } from "@/services/fileUpload";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -12,18 +12,20 @@ import {
 } from "@/components/ui/dialog";
 
 interface FileUploadProps {
-  documentId: string;
+  customerId: string;
   documentName: string;
-  existingFileId?: string;
-  onUploadComplete: (fileId: string) => void;
+  existingFileUrl?: string;
+  existingFilePath?: string;
+  onUploadComplete: (fileUrl: string, filePath: string) => void;
   onDelete?: () => void;
   acceptedFormats?: string;
 }
 
 export function FileUpload({
-  documentId,
+  customerId,
   documentName,
-  existingFileId,
+  existingFileUrl,
+  existingFilePath,
   onUploadComplete,
   onDelete,
   acceptedFormats = ".pdf,.jpg,.jpeg,.png,.docx",
@@ -33,18 +35,15 @@ export function FileUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const existingFile = existingFileId ? getFile(existingFileId) : null;
-
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    const validation = fileUploadService.validateFile(file);
+    if (!validation.valid) {
       toast({
-        title: "File Too Large",
-        description: "Please upload a file smaller than 5MB",
+        title: "Invalid File",
+        description: validation.error,
         variant: "destructive",
       });
       return;
@@ -53,9 +52,13 @@ export function FileUpload({
     setUploading(true);
 
     try {
-      const uploadedFile = await saveFile(file, documentId);
-      onUploadComplete(uploadedFile.id);
-      
+      const { fileUrl, filePath } = await fileUploadService.uploadDocument(
+        customerId,
+        documentName,
+        file
+      );
+      onUploadComplete(fileUrl, filePath);
+
       toast({
         title: "Upload Successful",
         description: `${file.name} has been uploaded`,
@@ -68,50 +71,58 @@ export function FileUpload({
       });
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
   const handleDownload = () => {
-    if (existingFile) {
-      downloadFile(existingFile);
+    if (existingFileUrl) {
+      window.open(existingFileUrl, "_blank");
       toast({
         title: "Download Started",
-        description: `Downloading ${existingFile.name}`,
+        description: `Downloading ${documentName}`,
       });
     }
   };
 
-  const handleDelete = () => {
-    if (existingFile && onDelete) {
-      deleteFile(existingFile.id);
-      onDelete();
-      toast({
-        title: "File Deleted",
-        description: "The file has been removed",
-      });
+  const handleDelete = async () => {
+    if (existingFilePath && onDelete) {
+      try {
+        await fileUploadService.deleteDocument(existingFilePath);
+        onDelete();
+        toast({
+          title: "File Deleted",
+          description: "The file has been removed",
+        });
+      } catch (error) {
+        toast({
+          title: "Delete Failed",
+          description: error instanceof Error ? error.message : "Failed to delete file",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const getFileIcon = () => {
-    if (!existingFile) return <FileText className="h-4 w-4" />;
-    
-    const ext = existingFile.name.split('.').pop()?.toLowerCase();
+    if (!existingFileUrl) return <FileText className="h-4 w-4" />;
+
+    const ext = existingFileUrl.split(".").pop()?.toLowerCase();
     switch (ext) {
-      case 'pdf':
+      case "pdf":
         return <FileText className="h-4 w-4 text-red-500" />;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
+      case "jpg":
+      case "jpeg":
+      case "png":
         return <FileText className="h-4 w-4 text-blue-500" />;
-      case 'docx':
+      case "docx":
         return <FileText className="h-4 w-4 text-blue-600" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
   };
 
-  const isImage = existingFile?.type.startsWith('image/');
+  const isImage = existingFileUrl?.match(/\.(jpg|jpeg|png|gif)$/i);
 
   return (
     <div className="space-y-2">
@@ -121,17 +132,16 @@ export function FileUpload({
         accept={acceptedFormats}
         onChange={handleFileSelect}
         className="hidden"
-        id={`file-${documentId}`}
+        id={`file-${customerId}-${documentName}`}
+        disabled={uploading}
       />
 
-      {existingFile ? (
+      {existingFileUrl ? (
         <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
           {getFileIcon()}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{existingFile.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {new Date(existingFile.uploadDate).toLocaleDateString()} • {(existingFile.size / 1024).toFixed(1)} KB
-            </p>
+            <p className="text-sm font-medium truncate">{documentName}</p>
+            <p className="text-xs text-muted-foreground">Uploaded</p>
           </div>
           <div className="flex gap-1">
             {isImage && (
@@ -165,6 +175,7 @@ export function FileUpload({
               size="sm"
               onClick={() => fileInputRef.current?.click()}
               title="Re-upload"
+              disabled={uploading}
             >
               <Upload className="h-4 w-4" />
             </Button>
@@ -172,7 +183,7 @@ export function FileUpload({
         </div>
       ) : (
         <label
-          htmlFor={`file-${documentId}`}
+          htmlFor={`file-${customerId}-${documentName}`}
           className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
         >
           <Upload className="h-4 w-4" />
@@ -180,21 +191,20 @@ export function FileUpload({
             {uploading ? "Uploading..." : "Click to upload"}
           </span>
           <Badge variant="outline" className="text-xs">
-            {acceptedFormats.replace(/\./g, '').replace(/,/g, ', ').toUpperCase()}
+            {acceptedFormats.replace(/\./g, "").replace(/,/g, ", ").toUpperCase()}
           </Badge>
         </label>
       )}
 
-      {/* Image Preview Dialog */}
-      {isImage && existingFile && (
+      {isImage && existingFileUrl && (
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>{existingFile.name}</DialogTitle>
+              <DialogTitle>{documentName}</DialogTitle>
             </DialogHeader>
             <img
-              src={existingFile.base64Data}
-              alt={existingFile.name}
+              src={existingFileUrl}
+              alt={documentName}
               className="w-full h-auto max-h-[70vh] object-contain"
             />
           </DialogContent>
