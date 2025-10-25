@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { mockCustomers, mockEmployees, mockActivities, Customer } from "@/data/mockData";
 import {
   Users,
   FileWarning,
@@ -15,12 +14,10 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusChart } from "@/components/StatusChart";
-import { ExcelImport } from "@/components/ExcelImport";
-import { calculateCustomerProgress, getProjectStatus } from "@/utils/progressUtils";
 import { exportToExcel } from "@/utils/exportUtils";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -28,63 +25,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { customersApi, employeesApi, activityLogsApi } from "@/services/api";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useApiCall } from "@/hooks/useApiCall";
 
 const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
+
+  const { loading: loadingCustomers, execute: fetchCustomers } = useApiCall({
+    errorMessage: "Failed to load customers",
+    showSuccessToast: false,
+  });
+
+  const { loading: loadingEmployees, execute: fetchEmployees } = useApiCall({
+    errorMessage: "Failed to load employees",
+    showSuccessToast: false,
+  });
+
+  const { loading: loadingActivities, execute: fetchActivities } = useApiCall({
+    errorMessage: "Failed to load activities",
+    showSuccessToast: false,
+  });
 
   const isAdmin = user?.role === "admin";
+  const loading = loadingCustomers || loadingEmployees || loadingActivities;
 
-  const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
-    const newCustomers = importedCustomers.map((c) => ({
-      ...c,
-      id: c.id || `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: c.name || '',
-      consumerNumber: c.consumerNumber || '',
-      mobile: c.mobile || '',
-      address: c.address || '',
-      systemCapacity: c.systemCapacity || 0,
-      orderAmount: c.orderAmount || 0,
-      orderDate: c.orderDate || new Date().toISOString().split('T')[0],
-      assignedTo: c.assignedTo || null,
-      approvalStatus: c.approvalStatus || 'pending',
-      locked: c.locked || false,
-    })) as Customer[];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    setCustomers([...customers, ...newCustomers]);
-    
-    toast({
-      title: "Import Complete",
-      description: `${newCustomers.length} customer(s) imported successfully`,
-    });
+  const loadData = async () => {
+    const [customersData, employeesData, activitiesData] = await Promise.all([
+      fetchCustomers(() => customersApi.getAll()),
+      fetchEmployees(() => employeesApi.getAll()),
+      fetchActivities(() => activityLogsApi.getAll(10)),
+    ]);
+
+    if (customersData) setCustomers(customersData);
+    if (employeesData) setEmployees(employeesData);
+    if (activitiesData) setActivities(activitiesData);
   };
 
   const totalCustomers = customers.length;
-  const totalEmployees = mockEmployees.filter((emp) => emp.status === "active").length;
+  const totalEmployees = employees.filter((emp) => emp.status === "active").length;
 
-  // Calculate project statuses based on progress
-  const customersWithProgress = customers.map((customer) => ({
-    ...customer,
-    progress: calculateCustomerProgress(customer.id),
-    status: getProjectStatus(calculateCustomerProgress(customer.id)),
-  }));
+  const customersWithProgress = customers.map((customer) => {
+    let progress = 0;
+    let status: "pending" | "in_progress" | "completed" = "pending";
+
+    if (customer.approval_status === "completed") {
+      progress = 100;
+      status = "completed";
+    } else if (customer.approval_status === "verified") {
+      progress = 50;
+      status = "in_progress";
+    } else {
+      progress = 10;
+      status = "pending";
+    }
+
+    return {
+      ...customer,
+      progress,
+      status,
+    };
+  });
 
   const pendingProjects = customersWithProgress.filter((c) => c.status === "pending").length;
-  const inProgressProjects = customersWithProgress.filter((c) => c.status === "in_progress")
-    .length;
+  const inProgressProjects = customersWithProgress.filter((c) => c.status === "in_progress").length;
   const completedProjects = customersWithProgress.filter((c) => c.status === "completed").length;
   const pendingDocs = customersWithProgress.filter((c) => c.progress < 30).length;
 
-  const recentActivities = mockActivities.slice(0, 5);
+  const recentActivities = activities.slice(0, 5);
 
-  // Apply filters
   let filteredCustomers = customersWithProgress.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (statusFilter !== "all") {
@@ -94,7 +116,7 @@ const Dashboard = () => {
   if (dateFilter !== "all") {
     const today = new Date();
     filteredCustomers = filteredCustomers.filter((customer) => {
-      const orderDate = new Date(customer.orderDate);
+      const orderDate = new Date(customer.order_date);
       const diffTime = Math.abs(today.getTime() - orderDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -189,6 +211,14 @@ const Dashboard = () => {
 
   const stats = isAdmin ? adminStats : employeeStats;
 
+  if (loading && customers.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading dashboard..." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -239,24 +269,30 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {recentActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm">
-                        <span className="font-medium">{activity.user}</span> {activity.action}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">
-                          {activity.section}
-                        </Badge>
-                        <span>{new Date(activity.date).toLocaleString()}</span>
+                {recentActivities.length > 0 ? (
+                  recentActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm">
+                          <span className="font-medium">{activity.user_name}</span> {activity.action}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-xs">
+                            {activity.section}
+                          </Badge>
+                          <span>{new Date(activity.created_at).toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    No recent activities
                   </div>
-                ))}
+                )}
                 <Button
                   variant="outline"
                   className="w-full"
@@ -373,12 +409,12 @@ const Dashboard = () => {
                           {customer.progress}%
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{customer.consumerNumber}</p>
+                      <p className="text-sm text-muted-foreground">{customer.consumer_number}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-foreground">{customer.systemCapacity} kW</p>
+                      <p className="font-semibold text-foreground">{customer.system_capacity} kW</p>
                       <p className="text-sm text-muted-foreground">
-                        ₹{customer.orderAmount.toLocaleString()}
+                        ₹{customer.order_amount.toLocaleString()}
                       </p>
                     </div>
                   </div>
