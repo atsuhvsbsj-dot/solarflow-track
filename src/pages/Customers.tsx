@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockCustomers, mockEmployees } from "@/data/mockData";
+import { mockCustomers, mockEmployees, Customer } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Plus, Download, Filter, Lock } from "lucide-react";
 import { CustomerModal } from "@/components/CustomerModal";
+import { ExcelImport } from "@/components/ExcelImport";
 import { calculateCustomerProgress } from "@/utils/progressUtils";
 import { exportToExcel } from "@/utils/exportUtils";
 import { Progress } from "@/components/ui/progress";
@@ -18,21 +19,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("name");
   const [modalOpen, setModalOpen] = useState(false);
+  const [customers, setCustomers] = useState(mockCustomers);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const isAdmin = user?.role === "admin";
+
+  const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
+    const newCustomers = importedCustomers.map((c) => ({
+      ...c,
+      id: c.id || `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: c.name || '',
+      consumerNumber: c.consumerNumber || '',
+      mobile: c.mobile || '',
+      address: c.address || '',
+      systemCapacity: c.systemCapacity || 0,
+      orderAmount: c.orderAmount || 0,
+      orderDate: c.orderDate || new Date().toISOString().split('T')[0],
+      assignedTo: c.assignedTo || null,
+      approvalStatus: c.approvalStatus || 'pending',
+      locked: c.locked || false,
+    })) as Customer[];
+
+    setCustomers([...customers, ...newCustomers]);
+    
+    toast({
+      title: "Import Complete",
+      description: `${newCustomers.length} customer(s) added successfully`,
+    });
+  };
 
   // Filter customers based on role
   const employee = mockEmployees.find((emp) => emp.email.startsWith(user?.username || ""));
   const visibleCustomers = isAdmin
-    ? mockCustomers
-    : mockCustomers.filter((customer) => employee?.assignedCustomers.includes(customer.id));
+    ? customers
+    : customers.filter((customer) => employee?.assignedCustomers.includes(customer.id));
 
   const customersWithProgress = visibleCustomers.map((customer) => ({
     ...customer,
@@ -40,7 +68,7 @@ const Customers = () => {
   }));
 
   const getAssignedEmployeeName = (customerId: string) => {
-    const customer = mockCustomers.find((c) => c.id === customerId);
+    const customer = customers.find((c) => c.id === customerId);
     if (!customer?.assignedTo) return "Unassigned";
     const employee = mockEmployees.find((emp) => emp.id === customer.assignedTo);
     return employee?.name || "Unknown";
@@ -103,10 +131,13 @@ const Customers = () => {
             Export
           </Button>
           {isAdmin && (
-            <Button onClick={() => setModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Customer
-            </Button>
+            <>
+              <ExcelImport onImportComplete={handleImportComplete} />
+              <Button onClick={() => setModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Customer
+              </Button>
+            </>
           )}
         </div>
       </div>

@@ -290,15 +290,19 @@ const CustomerDetail = () => {
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-muted-foreground" />
                           {doc.name}
+                          {doc.fileId && <Badge variant="outline" className="text-xs">📎 File</Badge>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={doc.status} />
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={doc.status} />
+                          {doc.verified && <Badge className="bg-blue-500 text-white text-xs">✓ Verified</Badge>}
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {doc.startDate && (
+                        {doc.uploadDate && (
                           <div>
-                            <span className="text-muted-foreground">Start:</span> {doc.startDate}
+                            <span className="text-muted-foreground">Uploaded:</span> {doc.uploadDate}
                           </div>
                         )}
                         {doc.endDate && (
@@ -306,7 +310,7 @@ const CustomerDetail = () => {
                             <span className="text-muted-foreground">End:</span> {doc.endDate}
                           </div>
                         )}
-                        {!doc.startDate && !doc.endDate && "-"}
+                        {!doc.uploadDate && !doc.endDate && "-"}
                       </TableCell>
                       <TableCell>{doc.doneBy || "-"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">

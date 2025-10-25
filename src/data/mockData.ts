@@ -51,6 +51,7 @@ export interface Document {
   remark?: string;
   startDate?: string;
   endDate?: string;
+  fileId?: string;
 }
 
 export interface ChecklistItem {

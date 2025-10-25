@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { mockCustomers, mockEmployees, mockActivities } from "@/data/mockData";
+import { mockCustomers, mockEmployees, mockActivities, Customer } from "@/data/mockData";
 import {
   Users,
   FileWarning,
@@ -15,10 +15,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusChart } from "@/components/StatusChart";
+import { ExcelImport } from "@/components/ExcelImport";
 import { calculateCustomerProgress, getProjectStatus } from "@/utils/progressUtils";
 import { exportToExcel } from "@/utils/exportUtils";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -31,16 +33,42 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [customers, setCustomers] = useState(mockCustomers);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const isAdmin = user?.role === "admin";
 
-  const totalCustomers = mockCustomers.length;
+  const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
+    const newCustomers = importedCustomers.map((c) => ({
+      ...c,
+      id: c.id || `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: c.name || '',
+      consumerNumber: c.consumerNumber || '',
+      mobile: c.mobile || '',
+      address: c.address || '',
+      systemCapacity: c.systemCapacity || 0,
+      orderAmount: c.orderAmount || 0,
+      orderDate: c.orderDate || new Date().toISOString().split('T')[0],
+      assignedTo: c.assignedTo || null,
+      approvalStatus: c.approvalStatus || 'pending',
+      locked: c.locked || false,
+    })) as Customer[];
+
+    setCustomers([...customers, ...newCustomers]);
+    
+    toast({
+      title: "Import Complete",
+      description: `${newCustomers.length} customer(s) imported successfully`,
+    });
+  };
+
+  const totalCustomers = customers.length;
   const totalEmployees = mockEmployees.filter((emp) => emp.status === "active").length;
 
   // Calculate project statuses based on progress
-  const customersWithProgress = mockCustomers.map((customer) => ({
+  const customersWithProgress = customers.map((customer) => ({
     ...customer,
     progress: calculateCustomerProgress(customer.id),
     status: getProjectStatus(calculateCustomerProgress(customer.id)),
