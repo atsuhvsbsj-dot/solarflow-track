@@ -8,28 +8,24 @@ import { Sun, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
-    if (!email || !password) {
-      setError("Please enter both email and password");
-      setLoading(false);
+    if (!username || !password) {
+      setError("Please enter both username and password");
       return;
     }
 
-    const result = await login(email, password);
-    if (!result.success) {
-      setError(result.error || "Login failed. Please check your credentials.");
+    const success = login(username, password);
+    if (!success) {
+      setError("Invalid credentials. Try admin/admin123 or employee/employee123");
     }
-    setLoading(false);
   };
 
   return (
@@ -57,14 +53,13 @@ const Login = () => {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                id="username"
+                type="text"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
 
@@ -73,20 +68,20 @@ const Login = () => {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+            <Button type="submit" className="w-full">
+              Sign In
             </Button>
 
             <div className="text-center text-sm text-muted-foreground space-y-1 pt-4 border-t">
-              <p className="font-medium">Create an account to get started</p>
-              <p>Contact admin for registration</p>
+              <p className="font-medium">Demo Credentials:</p>
+              <p>Admin: admin / admin123</p>
+              <p>Employee: employee / employee123</p>
             </div>
           </form>
         </CardContent>

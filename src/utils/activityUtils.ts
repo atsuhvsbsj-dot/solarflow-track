@@ -36,4 +36,3 @@ export const getCustomerActivities = (customerId: string): ActivityLog[] => {
 export const getEmployeeActivities = (userId: string): ActivityLog[] => {
   return mockActivities.filter((activity) => activity.userId === userId);
 };
-
