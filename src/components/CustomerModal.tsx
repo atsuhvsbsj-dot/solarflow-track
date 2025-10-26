@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Customer } from "@/data/mockData";
+import { customerSchema } from "@/lib/validation";
+import { dataManager } from "@/lib/dataManager";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerModalProps {
   open: boolean;
@@ -16,6 +19,7 @@ interface CustomerModalProps {
 
 export const CustomerModal = ({ open, onOpenChange, customer, onSave }: CustomerModalProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [formData, setFormData] = useState<Partial<Customer>>(
     customer || {
       name: "",
@@ -30,41 +34,41 @@ export const CustomerModal = ({ open, onOpenChange, customer, onSave }: Customer
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (open && customer) {
+      setFormData(customer);
+    } else if (open && !customer) {
+      setFormData({
+        name: "",
+        consumerNumber: "",
+        mobile: "",
+        address: "",
+        systemCapacity: 0,
+        orderAmount: 0,
+        orderDate: new Date().toISOString().split("T")[0],
+      });
+    }
+    setErrors({});
+  }, [open, customer]);
+
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name?.trim()) {
-      newErrors.name = "Name is required";
+    try {
+      // Validate using zod schema
+      customerSchema.parse(formData);
+      setErrors({});
+      return true;
+    } catch (error: any) {
+      const newErrors: Record<string, string> = {};
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          if (err.path) {
+            newErrors[err.path[0]] = err.message;
+          }
+        });
+      }
+      setErrors(newErrors);
+      return false;
     }
-
-    if (!formData.consumerNumber?.trim()) {
-      newErrors.consumerNumber = "Consumer number is required";
-    }
-
-    if (!formData.mobile?.trim()) {
-      newErrors.mobile = "Mobile number is required";
-    } else if (!/^[0-9]{10}$/.test(formData.mobile)) {
-      newErrors.mobile = "Mobile number must be 10 digits";
-    }
-
-    if (!formData.address?.trim()) {
-      newErrors.address = "Address is required";
-    }
-
-    if (!formData.systemCapacity || formData.systemCapacity <= 0) {
-      newErrors.systemCapacity = "System capacity must be greater than 0";
-    }
-
-    if (!formData.orderAmount || formData.orderAmount <= 0) {
-      newErrors.orderAmount = "Order amount must be greater than 0";
-    }
-
-    if (!formData.orderDate) {
-      newErrors.orderDate = "Order date is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,11 +83,37 @@ export const CustomerModal = ({ open, onOpenChange, customer, onSave }: Customer
       return;
     }
 
+    if (customer) {
+      // Update existing customer
+      const updatedCustomer = { ...customer, ...formData } as Customer;
+      dataManager.updateCustomer(updatedCustomer, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Customer Updated",
+        description: `${formData.name} has been updated successfully`,
+      });
+    } else {
+      // Add new customer
+      const newCustomer: Customer = {
+        id: `CUST${Date.now()}`,
+        name: formData.name || "",
+        consumerNumber: formData.consumerNumber || "",
+        mobile: formData.mobile || "",
+        address: formData.address || "",
+        systemCapacity: formData.systemCapacity || 0,
+        orderAmount: formData.orderAmount || 0,
+        orderDate: formData.orderDate || new Date().toISOString().split("T")[0],
+        approvalStatus: "pending",
+        locked: false,
+      };
+      
+      dataManager.addCustomer(newCustomer, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Customer Added",
+        description: `${formData.name} has been added successfully. All sections auto-created.`,
+      });
+    }
+
     onSave(formData);
-    toast({
-      title: customer ? "Customer Updated" : "Customer Added",
-      description: `${formData.name} has been ${customer ? "updated" : "added"} successfully`,
-    });
     onOpenChange(false);
   };
 
