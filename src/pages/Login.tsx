@@ -6,26 +6,45 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sun, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { LoginRequest } from "@/interfaces/authentication";
+import authService from "@/services/authService";
+import { useNavigate } from "react-router-dom";
+
 
 const Login = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState<LoginRequest>({
+    email: "",
+    password: "",
+  });
+    const [error, setError] = useState<string>(); 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    try {
+        const res = await authService.login(form as LoginRequest);
+        navigate("/dashboard");
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError("Invalid username or password.");
+      } else
+      console.log("Error: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
     setError("");
+  };
 
-    if (!username || !password) {
-      setError("Please enter both username and password");
-      return;
-    }
-
-    const success = login(username, password);
-    if (!success) {
-      setError("Invalid credentials. Try admin/admin123 or employee/employee123");
-    }
+  const validateForm = () => {
+    if (!form.email || !form.password)
+      {
+        setError("Please both username and password.");
+        return false;
+      }
+      return true; 
   };
 
   return (
@@ -45,7 +64,7 @@ const Login = () => {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+            {error&& (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
@@ -56,10 +75,11 @@ const Login = () => {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
+                name="email"
                 type="text"
                 placeholder="Enter username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={form.email}
+                onChange={handleChange}
               />
             </div>
 
@@ -67,22 +87,16 @@ const Login = () => {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={form.password}
+                onChange={handleChange}
               />
             </div>
-
             <Button type="submit" className="w-full">
               Sign In
             </Button>
-
-            <div className="text-center text-sm text-muted-foreground space-y-1 pt-4 border-t">
-              <p className="font-medium">Demo Credentials:</p>
-              <p>Admin: admin / admin123</p>
-              <p>Employee: employee / employee123</p>
-            </div>
           </form>
         </CardContent>
       </Card>

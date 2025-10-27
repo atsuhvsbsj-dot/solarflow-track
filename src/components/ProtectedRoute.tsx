@@ -1,14 +1,33 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import authService from "@/services/authService";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const roles = await authService.myRoles();
+        setIsAdmin(roles.includes("admin"));
+      } catch (err) {
+        console.error("Error fetching roles:", err);
+        setIsAdmin(false);
+      }
+    };
+
+    fetchRoles();
+  }, []);
+
+  if (isAdmin === null) {
+    return null;
+  }
+
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 

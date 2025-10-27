@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Eye, ListTodo, FileText } from "lucide-react";
-import { calculateCustomerProgress } from "@/utils/progressUtils";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -23,7 +22,7 @@ const MyProjects = () => {
     .filter((customer) => employee?.assignedCustomers.includes(customer.id))
     .map((customer) => ({
       ...customer,
-      progress: calculateCustomerProgress(customer.id),
+      //progress: calculateCustomerProgress(customer.id),
     }));
 
   const filteredCustomers = assignedCustomers.filter(
@@ -33,67 +32,59 @@ const MyProjects = () => {
   );
 
   // Calculate stats
-  const totalProjects = assignedCustomers.length;
-  const pendingTasks = assignedCustomers.filter((c) => c.progress < 50).length;
-  const inProgress = assignedCustomers.filter((c) => c.progress >= 50 && c.progress < 100).length;
-  const completed = assignedCustomers.filter((c) => c.progress === 100).length;
+  // const totalProjects = assignedCustomers.length;
+  // const pendingTasks = assignedCustomers.filter((c) => c.progress < 50).length;
+  // const inProgress = assignedCustomers.filter((c) => c.progress >= 50 && c.progress < 100).length;
+  // const completed = assignedCustomers.filter((c) => c.progress === 100).length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-foreground">My Assigned Projects</h2>
         <p className="text-muted-foreground">
-          Manage your assigned customer projects ({totalProjects} projects)
+          Manage your assigned customer projects
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="hover:shadow-lg transition-all">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Projects</CardTitle>
-            <div className="bg-primary/10 p-2 rounded-full">
-              <ListTodo className="h-4 w-4 text-primary" />
-            </div>
+            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+            <ListTodo className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-foreground">{totalProjects}</div>
+            {/* <div className="text-2xl font-bold">{totalProjects}</div> */}
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Tasks</CardTitle>
-            <div className="bg-destructive/10 p-2 rounded-full">
-              <FileText className="h-4 w-4 text-destructive" />
-            </div>
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <FileText className="h-4 w-4 text-status-pending" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-destructive">{pendingTasks}</div>
+            {/* <div className="text-2xl font-bold">{pendingTasks}</div> */}
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
-            <div className="bg-warning/10 p-2 rounded-full">
-              <FileText className="h-4 w-4 text-warning" />
-            </div>
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <FileText className="h-4 w-4 text-status-in-progress" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-warning">{inProgress}</div>
+            {/* <div className="text-2xl font-bold">{inProgress}</div> */}
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-            <div className="bg-success/10 p-2 rounded-full">
-              <FileText className="h-4 w-4 text-success" />
-            </div>
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <FileText className="h-4 w-4 text-status-completed" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-success">{completed}</div>
+            {/* <div className="text-2xl font-bold">{completed}</div> */}
           </CardContent>
         </Card>
       </div>
@@ -118,7 +109,7 @@ const MyProjects = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="text-lg">{customer.name}</span>
-                <Badge
+                {/* <Badge
                   className={
                     customer.progress === 100
                       ? "bg-success text-success-foreground"
@@ -128,7 +119,7 @@ const MyProjects = () => {
                   }
                 >
                   {customer.progress}%
-                </Badge>
+                </Badge> */}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -148,9 +139,9 @@ const MyProjects = () => {
               <div className="space-y-1 pt-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Project Progress</span>
-                  <span className="font-medium">{customer.progress}%</span>
+                  {/* <span className="font-medium">{customer.progress}%</span> */}
                 </div>
-                <Progress value={customer.progress} className="h-2" />
+                {/* <Progress value={customer.progress} className="h-2" /> */}
               </div>
 
               <Button variant="outline" className="w-full" size="sm">

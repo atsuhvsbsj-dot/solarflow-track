@@ -23,7 +23,6 @@ import { ArrowLeft, Download, Edit, Plus, AlertCircle, FileText, ListChecks, Cab
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { calculateCustomerProgress } from "@/utils/progressUtils";
 import { exportCustomerReport } from "@/utils/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentTabs } from "@/components/DocumentTabs";
@@ -85,7 +84,6 @@ const CustomerDetail = () => {
       setInspections(mockInspections.filter((i) => i.customerId === id));
       setCommissioning(mockCommissioning[id] || null);
       setAdvisings(mockAdvising.filter((a) => a.customerId === id));
-      setProgress(calculateCustomerProgress(id));
     }
   }, [id]);
 
@@ -111,27 +109,24 @@ const CustomerDetail = () => {
 
   const handleDocumentSave = (doc: Document) => {
     setDocuments((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
-    if (id) setProgress(calculateCustomerProgress(id));
+    //if (id) setProgress(calculateCustomerProgress(id));
   };
 
   const handleChecklistSave = (item: ChecklistItem) => {
     setChecklist((prev) => prev.map((c) => (c.id === item.id ? item : c)));
-    if (id) setProgress(calculateCustomerProgress(id));
+    //if (id) setProgress(calculateCustomerProgress(id));
   };
 
   const handleWiringSave = (wiringData: WiringDetails) => {
     setWiring(wiringData);
-    if (id) setProgress(calculateCustomerProgress(id));
   };
 
   const handleInspectionSave = (inspection: Inspection) => {
     setInspections((prev) => prev.map((i) => (i.id === inspection.id ? inspection : i)));
-    if (id) setProgress(calculateCustomerProgress(id));
   };
 
   const handleCommissioningSave = (commissioningData: Commissioning) => {
     setCommissioning(commissioningData);
-    if (id) setProgress(calculateCustomerProgress(id));
   };
 
   const handleAdvisingSave = (advising: Advising) => {
@@ -240,7 +235,7 @@ const CustomerDetail = () => {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Order Amount</p>
-              <p className="font-medium">₹{customer.orderAmount.toLocaleString()}</p>
+              <p className="font-medium">₹{customer.orderAmount}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Order Date</p>

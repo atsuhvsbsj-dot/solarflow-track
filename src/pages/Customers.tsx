@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockCustomers, mockEmployees, Customer } from "@/data/mockData";
+import { mockEmployees, Customer } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Plus, Download, Filter, Lock } from "lucide-react";
 import { CustomerModal } from "@/components/CustomerModal";
 import { ExcelImport } from "@/components/ExcelImport";
-import { calculateCustomerProgress } from "@/utils/progressUtils";
-import { exportToExcel } from "@/utils/exportUtils";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -20,17 +17,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { IOrder } from "@/interfaces/order";
+import { orderService } from "@/services/orderService";
+import { Progress } from "@/components/ui/progress";
+import { OrderStatus } from "@/constants/enums";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("name");
   const [modalOpen, setModalOpen] = useState(false);
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [customers, setCustomers] = useState<IOrder[]>([]);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
   const isAdmin = user?.role === "admin";
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await orderService.getAll();
+        setCustomers(response);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      } 
+    };
+
+    fetchCustomers();
+  }, []);
+
 
   const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
     const newCustomers = importedCustomers.map((c) => ({
@@ -48,7 +63,6 @@ const Customers = () => {
       locked: c.locked || false,
     })) as Customer[];
 
-    setCustomers([...customers, ...newCustomers]);
     
     toast({
       title: "Import Complete",
@@ -58,34 +72,36 @@ const Customers = () => {
 
   // Filter customers based on role
   const employee = mockEmployees.find((emp) => emp.email.startsWith(user?.username || ""));
-  const visibleCustomers = isAdmin
-    ? customers
-    : customers.filter((customer) => employee?.assignedCustomers.includes(customer.id));
 
-  const customersWithProgress = visibleCustomers.map((customer) => ({
-    ...customer,
-    progress: calculateCustomerProgress(customer.id),
-  }));
 
-  const getAssignedEmployeeName = (customerId: string) => {
-    const customer = customers.find((c) => c.id === customerId);
-    if (!customer?.assignedTo) return "Unassigned";
-    const employee = mockEmployees.find((emp) => emp.id === customer.assignedTo);
-    return employee?.name || "Unknown";
+  const getApprovalStatusBadge = (status: OrderStatus) => {debugger
+    const variants: Record<OrderStatus, string> = {
+    [OrderStatus.Pending]: "bg-yellow-500 text-white",
+    [OrderStatus.Approved]: "bg-blue-500 text-white",
+    [OrderStatus.Rejected]: "bg-red-500 text-white",
+    [OrderStatus.Completed]: "bg-green-500 text-white",
+    [OrderStatus.Cancelled]: "bg-gray-400 text-white",
   };
 
-  const getApprovalStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      pending: "bg-warning text-warning-foreground",
-      verified: "bg-blue-500 text-white",
-      completed: "bg-success text-success-foreground",
-    };
-    return <Badge className={variants[status] || ""}>{status}</Badge>;
+  const labels: Record<OrderStatus, string> = {
+    [OrderStatus.Pending]: "Pending",
+    [OrderStatus.Approved]: "Approved",
+    [OrderStatus.Rejected]: "Rejected",
+    [OrderStatus.Completed]: "Completed",
+    [OrderStatus.Cancelled]: "Cancelled",
+  };
+  console.log("Status:", labels[status]);
+  console.log("Badge Variant:", variants[status]);
+    return (
+    <Badge className={variants[status]}>
+      {labels[status]}
+    </Badge>
+  );
   };
 
-  let filteredCustomers = customersWithProgress.filter(
+  let filteredCustomers = customers.filter(
     (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.consumerNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -93,15 +109,13 @@ const Customers = () => {
   filteredCustomers = [...filteredCustomers].sort((a, b) => {
     switch (sortBy) {
       case "name":
-        return a.name.localeCompare(b.name);
+        return a.customerName.localeCompare(b.customerName);
       case "date":
         return new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
       case "capacity":
         return b.systemCapacity - a.systemCapacity;
       case "amount":
         return b.orderAmount - a.orderAmount;
-      case "progress":
-        return b.progress - a.progress;
       default:
         return 0;
     }
@@ -113,7 +127,7 @@ const Customers = () => {
   };
 
   const handleExport = () => {
-    exportToExcel(filteredCustomers);
+    //exportToExcel(filteredCustomers);
   };
 
   return (
@@ -178,10 +192,10 @@ const Customers = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{customer.name}</span>
-                  {customer.locked && <Lock className="h-4 w-4 text-muted-foreground" />}
+                  <span className="text-lg">{customer.customerName}</span>
+                  {/* {customer.locked && <Lock className="h-4 w-4 text-muted-foreground" />} */}
                 </div>
-                <Badge
+                { <Badge
                   className={
                     customer.progress === 100
                       ? "bg-success text-success-foreground"
@@ -191,7 +205,7 @@ const Customers = () => {
                   }
                 >
                   {customer.progress}%
-                </Badge>
+                </Badge> }
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -201,7 +215,7 @@ const Customers = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Mobile:</span>
-                <span className="font-medium">{customer.mobile}</span>
+                <span className="font-medium">{customer.customerPhone}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Capacity:</span>
@@ -209,7 +223,7 @@ const Customers = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Order Amount:</span>
-                <span className="font-medium">₹{customer.orderAmount.toLocaleString()}</span>
+                <span className="font-medium">₹{customer.totalAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Order Date:</span>
@@ -218,26 +232,22 @@ const Customers = () => {
                 </span>
               </div>
 
-              {isAdmin && (
+              { 
                 <>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Assigned To:</span>
-                    <span className="font-medium">{getAssignedEmployeeName(customer.id)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Status:</span>
-                    {getApprovalStatusBadge(customer.approvalStatus)}
+                    {getApprovalStatusBadge(customer.status)}
                   </div>
                 </>
-              )}
+               }
 
-              <div className="space-y-1 pt-2">
+              { <div className="space-y-1 pt-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Project Progress</span>
                   <span className="font-medium">{customer.progress}%</span>
                 </div>
                 <Progress value={customer.progress} className="h-2" />
-              </div>
+              </div> }
             </CardContent>
           </Card>
         ))}

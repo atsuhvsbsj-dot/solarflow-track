@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
@@ -26,9 +26,17 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import authService from "@/services/authService";
+import LoadingSpinner from "./ui/loading-spinner";
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { logout, user } = useAuth();
+  const  user  = {role: "admin"}; 
+  const navigate = useNavigate();
+
+  const logout = async () => {
+    await authService.logout();
+    navigate("/");
+  }
 
   const adminMenuItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -42,6 +50,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   ];
 
   const employeeMenuItems = [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "My Projects", url: "/my-projects", icon: Briefcase },
     { title: "Customers", url: "/customers", icon: Users },
     { title: "Documents", url: "/documents", icon: FileText },
@@ -54,6 +63,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <SidebarProvider>
+      <LoadingSpinner />
       <div className="min-h-screen flex w-full bg-background">
         <Sidebar>
           <div className="flex items-center gap-2 px-4 py-6 border-b border-sidebar-border">
@@ -95,11 +105,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <div className="flex items-center gap-2">
                   <p className="text-xs text-sidebar-foreground/70 capitalize">{user?.role}</p>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      user?.role === "admin"
+                    className={`text-xs px-2 py-0.5 rounded-full ${user?.role === "admin"
                         ? "bg-primary/20 text-primary"
                         : "bg-muted text-muted-foreground"
-                    }`}
+                      }`}
                   >
                     {user?.role === "admin" ? "👑 Admin" : "🧑‍💻 Employee"}
                   </span>
@@ -110,9 +119,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               variant="outline"
               size="sm"
               onClick={logout}
-              className="w-full justify-start"
+              className="w-full justify-start text-black"
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="h-4 w-4 mr-2 text-black" />
               Logout
             </Button>
           </div>

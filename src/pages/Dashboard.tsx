@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { mockCustomers, mockEmployees, mockActivities, Customer } from "@/data/mockData";
@@ -15,9 +15,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusChart } from "@/components/StatusChart";
-import { ExcelImport } from "@/components/ExcelImport";
-import { calculateCustomerProgress, getProjectStatus } from "@/utils/progressUtils";
-import { exportToExcel } from "@/utils/exportUtils";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -28,66 +25,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { IOrder } from "@/interfaces/order";
+import { orderService } from "@/services/orderService";
+import { OrderStatus } from "@/constants/enums";
 
 const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus| null>(null);
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [customers, setCustomers] = useState(mockCustomers);
+  const [customers, setCustomers] = useState<IOrder[]>([]);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
   const isAdmin = user?.role === "admin";
 
-  const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
-    const newCustomers = importedCustomers.map((c) => ({
-      ...c,
-      id: c.id || `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: c.name || '',
-      consumerNumber: c.consumerNumber || '',
-      mobile: c.mobile || '',
-      address: c.address || '',
-      systemCapacity: c.systemCapacity || 0,
-      orderAmount: c.orderAmount || 0,
-      orderDate: c.orderDate || new Date().toISOString().split('T')[0],
-      assignedTo: c.assignedTo || null,
-      approvalStatus: c.approvalStatus || 'pending',
-      locked: c.locked || false,
-    })) as Customer[];
-
-    setCustomers([...customers, ...newCustomers]);
-    
-    toast({
-      title: "Import Complete",
-      description: `${newCustomers.length} customer(s) imported successfully`,
-    });
-  };
+  useEffect(() => {
+      const fetchCustomers = async () => {
+        try {
+          const response = await orderService.getAll();
+          setCustomers(response);
+        } catch (error) {
+          console.error("Error fetching customers:", error);
+        } 
+      };
+  
+      fetchCustomers();
+    }, []);
 
   const totalCustomers = customers.length;
   const totalEmployees = mockEmployees.filter((emp) => emp.status === "active").length;
 
-  // Calculate project statuses based on progress
-  const customersWithProgress = customers.map((customer) => ({
-    ...customer,
-    progress: calculateCustomerProgress(customer.id),
-    status: getProjectStatus(calculateCustomerProgress(customer.id)),
-  }));
 
-  const pendingProjects = customersWithProgress.filter((c) => c.status === "pending").length;
-  const inProgressProjects = customersWithProgress.filter((c) => c.status === "in_progress")
-    .length;
-  const completedProjects = customersWithProgress.filter((c) => c.status === "completed").length;
-  const pendingDocs = customersWithProgress.filter((c) => c.progress < 30).length;
+   const pendingProjects = customers.filter((c) => c.status === OrderStatus.Pending).length;
+   const inProgressProjects = customers.filter((c) => c.status === OrderStatus.InProcess)
+     .length;
+   const completedProjects = customers.filter((c) => c.status === OrderStatus.Completed).length;
+   //const pendingDocs = customersWithProgress.filter((c) => c.progress < 30).length;
 
   const recentActivities = mockActivities.slice(0, 5);
 
   // Apply filters
-  let filteredCustomers = customersWithProgress.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+  let filteredCustomers = customers.filter((customer) =>
+    customer.customerName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (statusFilter !== "all") {
+  if (statusFilter !== null) {
     filteredCustomers = filteredCustomers.filter((c) => c.status === statusFilter);
   }
 
@@ -106,7 +89,7 @@ const Dashboard = () => {
   }
 
   const handleExport = () => {
-    exportToExcel(filteredCustomers);
+    //exportToExcel(filteredCustomers);
   };
 
   const adminStats = [
@@ -128,7 +111,7 @@ const Dashboard = () => {
     },
     {
       title: "Pending Documents",
-      value: pendingDocs,
+      //value: pendingDocs,
       icon: FileWarning,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
@@ -136,19 +119,19 @@ const Dashboard = () => {
     },
     {
       title: "In Progress",
-      value: inProgressProjects,
+      //value: inProgressProjects,
       icon: Clock,
       color: "text-warning",
       bgColor: "bg-warning/10",
-      onClick: () => setStatusFilter("in_progress"),
+      onClick: () => setStatusFilter(OrderStatus.InProcess),
     },
     {
       title: "Commissioned",
-      value: completedProjects,
+      //value: completedProjects,
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
-      onClick: () => setStatusFilter("completed"),
+      onClick: () => setStatusFilter(OrderStatus.Completed),
     },
   ];
 
@@ -163,7 +146,7 @@ const Dashboard = () => {
     },
     {
       title: "Pending Documents",
-      value: pendingDocs,
+      //value: pendingDocs,
       icon: FileWarning,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
@@ -171,7 +154,7 @@ const Dashboard = () => {
     },
     {
       title: "In Progress",
-      value: inProgressProjects,
+      //value: inProgressProjects,
       icon: Clock,
       color: "text-warning",
       bgColor: "bg-warning/10",
@@ -179,7 +162,7 @@ const Dashboard = () => {
     },
     {
       title: "Commissioned",
-      value: completedProjects,
+      //value: completedProjects,
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
@@ -275,30 +258,30 @@ const Dashboard = () => {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
+                  variant={statusFilter === null ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setStatusFilter("all")}
+                  onClick={() => setStatusFilter(null)}
                 >
                   All Projects
                 </Button>
                 <Button
-                  variant={statusFilter === "pending" ? "default" : "outline"}
+                  variant={statusFilter === OrderStatus.Pending ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setStatusFilter("pending")}
+                  onClick={() => setStatusFilter(OrderStatus.Pending)}
                 >
                   Pending
                 </Button>
                 <Button
-                  variant={statusFilter === "in_progress" ? "default" : "outline"}
+                  variant={statusFilter === OrderStatus.InProcess ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setStatusFilter("in_progress")}
+                  onClick={() => setStatusFilter(OrderStatus.InProcess)}
                 >
                   In Progress
                 </Button>
                 <Button
-                  variant={statusFilter === "completed" ? "default" : "outline"}
+                  variant={statusFilter === OrderStatus.Completed ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setStatusFilter("completed")}
+                  onClick={() => setStatusFilter(OrderStatus.Completed)}
                 >
                   Completed
                 </Button>
@@ -360,12 +343,12 @@ const Dashboard = () => {
                   >
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{customer.name}</p>
+                        <p className="font-medium text-foreground">{customer.customerName}</p>
                         <Badge
                           className={
-                            customer.status === "completed"
+                            customer.status === OrderStatus.Completed
                               ? "bg-success text-success-foreground"
-                              : customer.status === "in_progress"
+                              : customer.status === OrderStatus.Pending
                               ? "bg-warning text-warning-foreground"
                               : "bg-muted text-muted-foreground"
                           }
@@ -378,7 +361,7 @@ const Dashboard = () => {
                     <div className="text-right">
                       <p className="font-semibold text-foreground">{customer.systemCapacity} kW</p>
                       <p className="text-sm text-muted-foreground">
-                        ₹{customer.orderAmount.toLocaleString()}
+                        ₹{customer.totalAmount}
                       </p>
                     </div>
                   </div>
