@@ -6,30 +6,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sun, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LoginRequest } from "@/interfaces/authentication";
-import authService from "@/services/authService";
-import { useNavigate } from "react-router-dom";
 
 
 const Login = () => {
-  const navigate = useNavigate();
-  const [form, setForm] = useState<LoginRequest>({
-    email: "",
+  const { login } = useAuth();
+  const [form, setForm] = useState({
+    username: "",
     password: "",
   });
-    const [error, setError] = useState<string>(); 
+  const [error, setError] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-    try {
-        const res = await authService.login(form as LoginRequest);
-        navigate("/dashboard");
-    } catch (err: any) {
-      if (err.response?.status === 401) {
-        setError("Invalid username or password.");
-      } else
-      console.log("Error: " + (err.response?.data?.message || err.message));
+    
+    const success = login(form.username, form.password);
+    if (!success) {
+      setError("Invalid username or password. Try 'admin'/'admin123' or 'employee'/'employee123'");
     }
   };
 
@@ -39,12 +32,11 @@ const Login = () => {
   };
 
   const validateForm = () => {
-    if (!form.email || !form.password)
-      {
-        setError("Please both username and password.");
-        return false;
-      }
-      return true; 
+    if (!form.username || !form.password) {
+      setError("Please enter both username and password.");
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -64,7 +56,7 @@ const Login = () => {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error&& (
+            {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
@@ -75,10 +67,10 @@ const Login = () => {
               <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
-                name="email"
+                name="username"
                 type="text"
-                placeholder="Enter username"
-                value={form.email}
+                placeholder="admin or employee"
+                value={form.username}
                 onChange={handleChange}
               />
             </div>
@@ -94,6 +86,13 @@ const Login = () => {
                 onChange={handleChange}
               />
             </div>
+
+            <div className="text-sm text-muted-foreground text-center">
+              <p>Demo accounts:</p>
+              <p className="mt-1">Admin: admin / admin123</p>
+              <p>Employee: employee / employee123</p>
+            </div>
+
             <Button type="submit" className="w-full">
               Sign In
             </Button>
