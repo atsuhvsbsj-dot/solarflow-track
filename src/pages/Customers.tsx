@@ -74,13 +74,14 @@ const Customers = () => {
   const employee = mockEmployees.find((emp) => emp.email.startsWith(user?.username || ""));
 
 
-  const getApprovalStatusBadge = (status: OrderStatus) => {debugger
+  const getApprovalStatusBadge = (status: OrderStatus) => {
     const variants: Record<OrderStatus, string> = {
     [OrderStatus.Pending]: "bg-yellow-500 text-white",
     [OrderStatus.Approved]: "bg-blue-500 text-white",
     [OrderStatus.Rejected]: "bg-red-500 text-white",
     [OrderStatus.Completed]: "bg-green-500 text-white",
     [OrderStatus.Cancelled]: "bg-gray-400 text-white",
+    [OrderStatus.InProcess]: "bg-orange-500 text-white",
   };
 
   const labels: Record<OrderStatus, string> = {
@@ -89,6 +90,7 @@ const Customers = () => {
     [OrderStatus.Rejected]: "Rejected",
     [OrderStatus.Completed]: "Completed",
     [OrderStatus.Cancelled]: "Cancelled",
+    [OrderStatus.InProcess]: "In Process",
   };
   console.log("Status:", labels[status]);
   console.log("Badge Variant:", variants[status]);

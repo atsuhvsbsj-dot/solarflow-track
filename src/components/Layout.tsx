@@ -30,11 +30,12 @@ import authService from "@/services/authService";
 import LoadingSpinner from "./ui/loading-spinner";
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const  user  = {role: "admin"}; 
+  const { user, logout: authLogout } = useAuth();
   const navigate = useNavigate();
 
   const logout = async () => {
     await authService.logout();
+    authLogout();
     navigate("/");
   }
 
