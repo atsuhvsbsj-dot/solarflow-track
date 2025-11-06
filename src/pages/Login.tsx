@@ -20,9 +20,13 @@ const Login = () => {
     e.preventDefault();
     if (!validateForm()) return;
     
-    const success = login(form.username, form.password);
-    if (!success) {
-      setError("Invalid username or password. Try 'admin'/'admin123' or 'employee'/'employee123'");
+    try {
+      const success = await login(form.username, form.password);
+      if (!success) {
+        setError("Invalid username or password. Try 'admin'/'admin123' or 'employee'/'employee123'");
+      }
+    } catch (error) {
+      setError("Login failed. Please try again.");
     }
   };
 

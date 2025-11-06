@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import authService from "@/services/authService";
 
 interface User {
   username: string;
@@ -8,20 +9,12 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Demo credentials
-const DEMO_USERS = {
-  admin: { password: "admin123", role: "admin" as const },
-  employee: { password: "employee123", role: "employee" as const },
-  shreya: { password: "shreya123", role: "employee" as const },
-  rahul: { password: "rahul123", role: "employee" as const },
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -31,8 +24,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if user is stored in localStorage with session expiry
     const storedUser = localStorage.getItem("solar_user");
     const sessionExpiry = localStorage.getItem("solar_session_expiry");
+    const token = authService.getToken();
     
-    if (storedUser && sessionExpiry) {
+    if (storedUser && sessionExpiry && token) {
       const expiryTime = parseInt(sessionExpiry);
       const currentTime = new Date().getTime();
       
@@ -43,15 +37,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Session expired, clear storage
         localStorage.removeItem("solar_user");
         localStorage.removeItem("solar_session_expiry");
+        authService.logout();
       }
     }
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const userCreds = DEMO_USERS[username as keyof typeof DEMO_USERS];
-    
-    if (userCreds && userCreds.password === password) {
-      const loggedInUser = { username, role: userCreds.role };
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      // Call API login (use username as email for demo)
+      await authService.login({ email: username, password });
+      
+      // Get user roles from API
+      const roles = await authService.myRoles();
+      const role: "admin" | "employee" = roles.includes("admin") ? "admin" : "employee";
+      
+      const loggedInUser: User = { username, role };
       setUser(loggedInUser);
       
       // Set session expiry to 30 minutes from now
@@ -60,20 +60,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("solar_session_expiry", expiryTime.toString());
       
       // Navigate based on role
-      if (userCreds.role === "admin") {
+      if (role === "admin") {
         navigate("/dashboard");
       } else {
         navigate("/my-projects");
       }
       return true;
+    } catch (error) {
+      console.error("Login failed:", error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem("solar_user");
     localStorage.removeItem("solar_session_expiry");
+    authService.logout();
     navigate("/");
   };
 

@@ -105,7 +105,7 @@ const App = () => (
             <Route
               path="/employees"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Layout>
                     <Employees />
                   </Layout>
