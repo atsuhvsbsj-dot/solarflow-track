@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { mockEmployees, mockCustomers } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { storage, STORAGE_CHANGE_EVENT } from "@/lib/storage";
+import { dataManager } from "@/lib/dataManager";
+import { Employee } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +9,7 @@ import { Search, Plus, UserCheck, UserX, Edit, Trash2 } from "lucide-react";
 import { EmployeeModal } from "@/components/EmployeeModal";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Table,
   TableBody,
@@ -29,38 +32,99 @@ import {
 const Employees = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<string | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const filteredEmployees = mockEmployees.filter(
+  useEffect(() => {
+    loadEmployees();
+
+    const handleStorageChange = () => {
+      loadEmployees();
+    };
+
+    window.addEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    };
+  }, []);
+
+  const loadEmployees = () => {
+    setEmployees(storage.getEmployees());
+  };
+
+  const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSaveEmployee = (employee: any) => {
-    console.log("Saving employee:", employee);
-    // In real app, this would call an API
+  const handleSaveEmployee = (employeeData: Partial<Employee>) => {
+    try {
+      if (selectedEmployee) {
+        const updated: Employee = { ...selectedEmployee, ...employeeData };
+        dataManager.updateEmployee(updated, user?.username || "Admin", user?.username || "admin");
+        toast({
+          title: "Employee Updated",
+          description: `${employeeData.name} has been updated successfully`,
+        });
+      } else {
+        const newEmployee: Employee = {
+          id: `emp${Date.now()}`,
+          name: employeeData.name || "",
+          email: employeeData.email || "",
+          phone: employeeData.phone || "",
+          status: "active",
+          assignedCustomers: [],
+          createdBy: user?.username || "admin",
+          createdDate: new Date().toISOString().split("T")[0],
+        };
+        dataManager.addEmployee(newEmployee, user?.username || "Admin", user?.username || "admin");
+        toast({
+          title: "Employee Added",
+          description: `${employeeData.name} has been added successfully`,
+        });
+      }
+      setModalOpen(false);
+      setSelectedEmployee(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save employee",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleApprove = (employeeId: string) => {
-    toast({
-      title: "Employee Approved",
-      description: "Employee has been approved and activated",
-    });
+    const employee = employees.find((e) => e.id === employeeId);
+    if (employee) {
+      const updated = { ...employee, status: "active" as const };
+      dataManager.updateEmployee(updated, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Employee Approved",
+        description: "Employee has been approved and activated",
+      });
+    }
   };
 
   const handleSuspend = (employeeId: string) => {
-    toast({
-      title: "Employee Suspended",
-      description: "Employee has been suspended",
-      variant: "destructive",
-    });
+    const employee = employees.find((e) => e.id === employeeId);
+    if (employee) {
+      const updated = { ...employee, status: "suspended" as const };
+      dataManager.updateEmployee(updated, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Employee Suspended",
+        description: "Employee has been suspended",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEdit = (employee: any) => {
+  const handleEdit = (employee: Employee) => {
     setSelectedEmployee(employee);
     setModalOpen(true);
   };
@@ -71,12 +135,15 @@ const Employees = () => {
   };
 
   const handleDeleteConfirm = () => {
-    toast({
-      title: "Employee Deleted",
-      description: "Employee has been removed from the system",
-    });
-    setDeleteDialogOpen(false);
-    setEmployeeToDelete(null);
+    if (employeeToDelete) {
+      dataManager.deleteEmployee(employeeToDelete, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Employee Deleted",
+        description: "Employee has been removed from the system",
+      });
+      setDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -91,8 +158,9 @@ const Employees = () => {
   };
 
   const getAssignedCustomerNames = (customerIds: string[]) => {
+    const customers = storage.getCustomers();
     return customerIds
-      .map((id) => mockCustomers.find((c) => c.id === id)?.name)
+      .map((id) => customers.find((c) => c.id === id)?.name)
       .filter(Boolean)
       .join(", ");
   };
@@ -206,7 +274,10 @@ const Employees = () => {
 
       <EmployeeModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setSelectedEmployee(null);
+        }}
         onSave={handleSaveEmployee}
         employee={selectedEmployee}
       />

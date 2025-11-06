@@ -1,34 +1,25 @@
+import * as XLSX from "xlsx";
 import { Customer } from "@/data/mockData";
 
-export const exportToExcel = (customers: Customer[]) => {
-  const headers = ["Name", "Consumer Number", "Mobile", "Address", "System Capacity (kW)", "Order Amount (₹)", "Order Date"];
-  
-  let csvContent = headers.join(",") + "\n";
-  
-  customers.forEach((customer) => {
-    const row = [
-      customer.name,
-      customer.consumerNumber,
-      customer.mobile,
-      `"${customer.address}"`,
-      customer.systemCapacity,
-      customer.orderAmount,
-      customer.orderDate,
-    ];
-    csvContent += row.join(",") + "\n";
-  });
+export const exportToExcel = (customers: any[]) => {
+  const worksheet = XLSX.utils.json_to_sheet(
+    customers.map((c) => ({
+      Name: c.name,
+      "Consumer Number": c.consumerNumber,
+      Mobile: c.mobile,
+      Address: c.address,
+      "System Capacity (kW)": c.systemCapacity,
+      "Order Amount": c.orderAmount,
+      "Order Date": c.orderDate,
+      "Progress (%)": c.progress || 0,
+      Status: c.approvalStatus,
+    }))
+  );
 
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  
-  link.setAttribute("href", url);
-  link.setAttribute("download", `customers_${new Date().toISOString().split("T")[0]}.csv`);
-  link.style.visibility = "hidden";
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+
+  XLSX.writeFile(workbook, `Customers_${new Date().toISOString().split("T")[0]}.xlsx`);
 };
 
 export const exportCustomerReport = (customer: Customer) => {

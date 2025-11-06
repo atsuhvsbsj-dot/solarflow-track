@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockEmployees, Customer } from "@/data/mockData";
+import { Customer } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Plus, Download, Filter, Lock } from "lucide-react";
+import { Search, Plus, Download, Filter, Trash2 } from "lucide-react";
 import { CustomerModal } from "@/components/CustomerModal";
 import { ExcelImport } from "@/components/ExcelImport";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +17,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { IOrder } from "@/interfaces/order";
-import { orderService } from "@/services/orderService";
 import { Progress } from "@/components/ui/progress";
-import { OrderStatus } from "@/constants/enums";
+import { storage, STORAGE_CHANGE_EVENT } from "@/lib/storage";
+import { calculateOverallProgress } from "@/lib/progressCalculator";
+import { dataManager } from "@/lib/dataManager";
+import { exportToExcel } from "@/utils/exportUtils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("name");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
-  const [customers, setCustomers] = useState<IOrder[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -34,102 +49,148 @@ const Customers = () => {
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await orderService.getAll();
-        setCustomers(response);
-      } catch (error) {
-        console.error("Error fetching customers:", error);
-      } 
+    loadCustomers();
+
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      loadCustomers();
     };
 
-    fetchCustomers();
+    window.addEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    };
   }, []);
+
+  const loadCustomers = () => {
+    setCustomers(storage.getCustomers());
+  };
 
 
   const handleImportComplete = (importedCustomers: Partial<Customer>[]) => {
-    const newCustomers = importedCustomers.map((c) => ({
-      ...c,
-      id: c.id || `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: c.name || '',
-      consumerNumber: c.consumerNumber || '',
-      mobile: c.mobile || '',
-      address: c.address || '',
-      systemCapacity: c.systemCapacity || 0,
-      orderAmount: c.orderAmount || 0,
-      orderDate: c.orderDate || new Date().toISOString().split('T')[0],
-      assignedTo: c.assignedTo || null,
-      approvalStatus: c.approvalStatus || 'pending',
-      locked: c.locked || false,
-    })) as Customer[];
-
-    
+    const count = dataManager.importCustomers(importedCustomers, user?.username || "Admin", user?.username || "admin");
     toast({
       title: "Import Complete",
-      description: `${newCustomers.length} customer(s) added successfully`,
+      description: `${count} customer(s) added successfully`,
     });
   };
 
-  // Filter customers based on role
-  const employee = mockEmployees.find((emp) => emp.email.startsWith(user?.username || ""));
+  // Calculate progress for each customer
+  const customersWithProgress = customers.map((customer) => ({
+    ...customer,
+    progress: calculateOverallProgress(customer.id),
+  }));
 
+  // Apply filters
+  let filteredCustomers = customersWithProgress.filter((customer) => {
+    const matchesSearch =
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.consumerNumber.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const getApprovalStatusBadge = (status: OrderStatus) => {
-    const variants: Record<OrderStatus, string> = {
-    [OrderStatus.Pending]: "bg-yellow-500 text-white",
-    [OrderStatus.Approved]: "bg-blue-500 text-white",
-    [OrderStatus.Rejected]: "bg-red-500 text-white",
-    [OrderStatus.Completed]: "bg-green-500 text-white",
-    [OrderStatus.Cancelled]: "bg-gray-400 text-white",
-    [OrderStatus.InProcess]: "bg-orange-500 text-white",
-  };
+    const matchesStatus =
+      filterStatus === "all" ||
+      (filterStatus === "pending" && customer.progress === 0) ||
+      (filterStatus === "in_progress" && customer.progress > 0 && customer.progress < 100) ||
+      (filterStatus === "completed" && customer.progress === 100);
 
-  const labels: Record<OrderStatus, string> = {
-    [OrderStatus.Pending]: "Pending",
-    [OrderStatus.Approved]: "Approved",
-    [OrderStatus.Rejected]: "Rejected",
-    [OrderStatus.Completed]: "Completed",
-    [OrderStatus.Cancelled]: "Cancelled",
-    [OrderStatus.InProcess]: "In Process",
-  };
-  console.log("Status:", labels[status]);
-  console.log("Badge Variant:", variants[status]);
-    return (
-    <Badge className={variants[status]}>
-      {labels[status]}
-    </Badge>
-  );
-  };
-
-  let filteredCustomers = customers.filter(
-    (customer) =>
-      customer.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.consumerNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    return matchesSearch && matchesStatus;
+  });
 
   // Sort customers
   filteredCustomers = [...filteredCustomers].sort((a, b) => {
     switch (sortBy) {
       case "name":
-        return a.customerName.localeCompare(b.customerName);
+        return a.name.localeCompare(b.name);
       case "date":
         return new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
       case "capacity":
         return b.systemCapacity - a.systemCapacity;
       case "amount":
         return b.orderAmount - a.orderAmount;
+      case "progress":
+        return b.progress - a.progress;
       default:
         return 0;
     }
   });
 
-  const handleSaveCustomer = (customer: any) => {
-    console.log("Saving customer:", customer);
-    // In real app, this would call an API
+  const handleSaveCustomer = (customerData: Partial<Customer>) => {
+    try {
+      if (selectedCustomer) {
+        // Update existing
+        const updated: Customer = { ...selectedCustomer, ...customerData };
+        dataManager.updateCustomer(updated, user?.username || "Admin", user?.username || "admin");
+        toast({
+          title: "Customer Updated",
+          description: `${customerData.name} has been updated successfully`,
+        });
+      } else {
+        // Add new
+        const newCustomer: Customer = {
+          id: `CUST${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          name: customerData.name || "",
+          consumerNumber: customerData.consumerNumber || "",
+          mobile: customerData.mobile || "",
+          address: customerData.address || "",
+          systemCapacity: customerData.systemCapacity || 0,
+          orderAmount: customerData.orderAmount || 0,
+          orderDate: customerData.orderDate || new Date().toISOString().split("T")[0],
+          approvalStatus: "pending",
+          locked: false,
+        };
+        dataManager.addCustomer(newCustomer, user?.username || "Admin", user?.username || "admin");
+        toast({
+          title: "Customer Added",
+          description: `${customerData.name} has been added successfully`,
+        });
+      }
+      setModalOpen(false);
+      setSelectedCustomer(undefined);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save customer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setModalOpen(true);
+  };
+
+  const handleDeleteClick = (customerId: string) => {
+    setCustomerToDelete(customerId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (customerToDelete) {
+      dataManager.deleteCustomer(customerToDelete, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Customer Deleted",
+        description: "Customer and all related data have been removed",
+      });
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    }
   };
 
   const handleExport = () => {
-    //exportToExcel(filteredCustomers);
+    exportToExcel(filteredCustomers);
+    toast({
+      title: "Export Complete",
+      description: "Customer data exported to Excel",
+    });
+  };
+
+  const getProgressBadge = (progress: number) => {
+    if (progress === 100)
+      return <Badge className="bg-success text-success-foreground">Completed</Badge>;
+    if (progress > 0)
+      return <Badge className="bg-warning text-warning-foreground">In Progress</Badge>;
+    return <Badge className="bg-destructive text-destructive-foreground">Pending</Badge>;
   };
 
   return (
@@ -158,7 +219,7 @@ const Customers = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -169,9 +230,21 @@ const Customers = () => {
           />
         </div>
 
-        <Select value={sortBy} onValueChange={setSortBy}>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger>
             <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger>
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -186,28 +259,11 @@ const Customers = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredCustomers.map((customer) => (
-          <Card
-            key={customer.id}
-            className="hover:shadow-lg transition-all cursor-pointer"
-            onClick={() => navigate(`/customers/${customer.id}`)}
-          >
+          <Card key={customer.id} className="hover:shadow-lg transition-all group">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{customer.customerName}</span>
-                  {/* {customer.locked && <Lock className="h-4 w-4 text-muted-foreground" />} */}
-                </div>
-                { <Badge
-                  className={
-                    customer.progress === 100
-                      ? "bg-success text-success-foreground"
-                      : customer.progress > 0
-                      ? "bg-warning text-warning-foreground"
-                      : "bg-muted text-muted-foreground"
-                  }
-                >
-                  {customer.progress}%
-                </Badge> }
+                <span className="text-lg">{customer.name}</span>
+                {getProgressBadge(customer.progress)}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -217,7 +273,7 @@ const Customers = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Mobile:</span>
-                <span className="font-medium">{customer.customerPhone}</span>
+                <span className="font-medium">{customer.mobile}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Capacity:</span>
@@ -225,7 +281,7 @@ const Customers = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Order Amount:</span>
-                <span className="font-medium">₹{customer.totalAmount.toLocaleString()}</span>
+                <span className="font-medium">₹{customer.orderAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Order Date:</span>
@@ -234,22 +290,48 @@ const Customers = () => {
                 </span>
               </div>
 
-              { 
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Status:</span>
-                    {getApprovalStatusBadge(customer.status)}
-                  </div>
-                </>
-               }
-
-              { <div className="space-y-1 pt-2">
+              <div className="space-y-1 pt-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Project Progress</span>
                   <span className="font-medium">{customer.progress}%</span>
                 </div>
                 <Progress value={customer.progress} className="h-2" />
-              </div> }
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => navigate(`/customers/${customer.id}`)}
+                >
+                  View Details
+                </Button>
+                {isAdmin && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(customer);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(customer.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -267,9 +349,30 @@ const Customers = () => {
 
       <CustomerModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setSelectedCustomer(undefined);
+        }}
+        customer={selectedCustomer}
         onSave={handleSaveCustomer}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the customer and all
+              related data including documents, checklist, wiring, inspection, and commissioning
+              records.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
