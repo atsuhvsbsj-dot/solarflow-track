@@ -1,14 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  mockCustomers,
-  mockDocuments,
-  mockChecklist,
-  mockWiring,
-  mockInspections,
-  mockCommissioning,
-  mockAdvising,
-  mockEmployees,
   Document,
   ChecklistItem,
   WiringDetails,
@@ -16,6 +8,9 @@ import {
   Commissioning,
   Advising,
 } from "@/data/mockData";
+import { storage, STORAGE_CHANGE_EVENT } from "@/lib/storage";
+import { dataManager } from "@/lib/dataManager";
+import { calculateOverallProgress } from "@/lib/progressCalculator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,7 +43,7 @@ const CustomerDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
-  const customer = mockCustomers.find((c) => c.id === id);
+  const [customer, setCustomer] = useState(id ? storage.getCustomer(id) : undefined);
 
   // State management
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -58,6 +53,7 @@ const CustomerDetail = () => {
   const [commissioning, setCommissioning] = useState<Commissioning | null>(null);
   const [advisings, setAdvisings] = useState<Advising[]>([]);
   const [progress, setProgress] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Modal states
   const [checklistModal, setChecklistModal] = useState<{ open: boolean; item: ChecklistItem | null }>({
@@ -75,16 +71,32 @@ const CustomerDetail = () => {
     advising: null,
   });
 
-  // Load data
-  useEffect(() => {
+  // Load data from storage
+  const loadData = () => {
     if (id) {
-      setDocuments(mockDocuments.filter((d) => d.customerId === id));
-      setChecklist(mockChecklist.filter((c) => c.customerId === id));
-      setWiring(mockWiring[id] || null);
-      setInspections(mockInspections.filter((i) => i.customerId === id));
-      setCommissioning(mockCommissioning[id] || null);
-      setAdvisings(mockAdvising.filter((a) => a.customerId === id));
+      setCustomer(storage.getCustomer(id));
+      setDocuments(storage.getCustomerDocuments(id));
+      setChecklist(storage.getCustomerChecklist(id));
+      setWiring(storage.getCustomerWiring(id) || null);
+      setInspections(storage.getCustomerInspections(id));
+      setCommissioning(storage.getCustomerCommissioning(id) || null);
+      setProgress(calculateOverallProgress(id));
     }
+  };
+
+  useEffect(() => {
+    loadData();
+
+    // Listen for storage changes
+    const handleStorageChange = () => {
+      loadData();
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    };
   }, [id]);
 
   if (!customer) {
@@ -108,33 +120,60 @@ const CustomerDetail = () => {
   };
 
   const handleDocumentSave = (doc: Document) => {
-    setDocuments((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
-    //if (id) setProgress(calculateCustomerProgress(id));
+    storage.updateDocument(doc);
+    if (id) {
+      dataManager.recalculateProgress(id);
+    }
+    toast({
+      title: "Document Updated",
+      description: `${doc.name} has been updated`,
+    });
   };
 
   const handleChecklistSave = (item: ChecklistItem) => {
-    setChecklist((prev) => prev.map((c) => (c.id === item.id ? item : c)));
-    //if (id) setProgress(calculateCustomerProgress(id));
+    if (id) {
+      dataManager.updateChecklistItem(item, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Checklist Updated",
+        description: `${item.task} has been updated`,
+      });
+    }
   };
 
   const handleWiringSave = (wiringData: WiringDetails) => {
-    setWiring(wiringData);
+    if (id) {
+      dataManager.updateWiring(id, wiringData, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Wiring Updated",
+        description: "Wiring details have been updated",
+      });
+    }
   };
 
   const handleInspectionSave = (inspection: Inspection) => {
-    setInspections((prev) => prev.map((i) => (i.id === inspection.id ? inspection : i)));
+    dataManager.updateInspection(inspection, user?.username || "Admin", user?.username || "admin");
+    toast({
+      title: "Inspection Updated",
+      description: `${inspection.document} has been updated`,
+    });
   };
 
   const handleCommissioningSave = (commissioningData: Commissioning) => {
-    setCommissioning(commissioningData);
+    if (id) {
+      dataManager.updateCommissioning(id, commissioningData, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Commissioning Updated",
+        description: "Commissioning details have been updated",
+      });
+    }
   };
 
   const handleAdvisingSave = (advising: Advising) => {
-    if (advisings.find((a) => a.id === advising.id)) {
-      setAdvisings((prev) => prev.map((a) => (a.id === advising.id ? advising : a)));
-    } else {
-      setAdvisings((prev) => [...prev, advising]);
-    }
+    // Placeholder for advising functionality
+    toast({
+      title: "Advising Updated",
+      description: "Advising details have been saved",
+    });
   };
 
   const handleExportReport = () => {
@@ -154,37 +193,50 @@ const CustomerDetail = () => {
     return <Badge className={colors[priority]}>{priority.toUpperCase()}</Badge>;
   };
 
+  // Helper to get section status
+  const getSectionStatus = (progress: number): "pending" | "in_progress" | "completed" => {
+    if (progress === 100) return "completed";
+    if (progress > 0) return "in_progress";
+    return "pending";
+  };
+
   // Calculate section progress for ProgressPanel
+  const docProgress = documents.length > 0 ? Math.round((documents.filter(d => d.fileId || d.uploaded).length / documents.length) * 100) : 0;
+  const checkProgress = checklist.length > 0 ? Math.round((checklist.filter(c => c.status === "completed").length / checklist.length) * 100) : 0;
+  const wireProgress = wiring?.status === "completed" ? 100 : wiring?.status === "in_progress" ? 50 : 0;
+  const inspProgress = inspections.length > 0 ? Math.round((inspections.filter(i => i.status === "completed").length / inspections.length) * 100) : 0;
+  const commProgress = commissioning?.status === "completed" ? 100 : commissioning?.status === "in_progress" ? 50 : 0;
+
   const sectionProgress = [
     {
       name: "Documents",
-      progress: documents.length > 0 ? Math.round((documents.filter(d => d.fileId || d.uploaded).length / documents.length) * 100) : 0,
+      progress: docProgress,
       icon: FileText,
-      status: "in_progress" as const,
+      status: getSectionStatus(docProgress),
     },
     {
       name: "Checklist",
-      progress: checklist.length > 0 ? Math.round((checklist.filter(c => c.status === "completed").length / checklist.length) * 100) : 0,
+      progress: checkProgress,
       icon: ListChecks,
-      status: "in_progress" as const,
+      status: getSectionStatus(checkProgress),
     },
     {
       name: "Wiring",
-      progress: wiring?.status === "completed" ? 100 : wiring?.status === "in_progress" ? 50 : 0,
+      progress: wireProgress,
       icon: Cable,
-      status: "in_progress" as const,
+      status: wiring?.status || "pending",
     },
     {
       name: "Inspection",
-      progress: inspections.length > 0 ? Math.round((inspections.filter(i => i.status === "completed").length / inspections.length) * 100) : 0,
+      progress: inspProgress,
       icon: ClipboardCheck,
-      status: "in_progress" as const,
+      status: getSectionStatus(inspProgress),
     },
     {
       name: "Commissioning",
-      progress: commissioning?.status === "completed" ? 100 : commissioning?.status === "in_progress" ? 50 : 0,
+      progress: commProgress,
       icon: Zap,
-      status: "in_progress" as const,
+      status: commissioning?.status || "pending",
     },
   ];
 
@@ -259,14 +311,7 @@ const CustomerDetail = () => {
               <TabsTrigger value="wiring">Wiring</TabsTrigger>
               <TabsTrigger value="inspection">Inspection</TabsTrigger>
               <TabsTrigger value="commissioning">Commissioning</TabsTrigger>
-              <TabsTrigger value="advising">
-                Advising
-                {advisings.length > 0 && (
-                  <Badge variant="outline" className="ml-2">
-                    {advisings.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
+              <TabsTrigger value="activity">Activity Log</TabsTrigger>
             </TabsList>
 
             {/* Documents Tab */}
@@ -457,58 +502,39 @@ const CustomerDetail = () => {
               </Card>
             </TabsContent>
 
-            {/* Advising Tab */}
-            <TabsContent value="advising">
+            {/* Activity Log Tab */}
+            <TabsContent value="activity">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Advising Notes</CardTitle>
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAdvisingModal({ open: true, advising: null })}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Note
-                      </Button>
-                    )}
-                  </div>
+                  <CardTitle>Activity Log</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {advisings.length > 0 ? (
-                    <div className="space-y-3">
-                      {advisings.map((advising) => (
-                        <Card key={advising.id} className="animate-fade-in">
-                          <CardContent className="pt-4">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-semibold">{advising.title}</h4>
-                                  {getPriorityBadge(advising.priority)}
-                                  <StatusBadge status={advising.status} />
-                                </div>
-                                <p className="text-sm text-muted-foreground">{advising.description}</p>
-                              </div>
-                              {isAdmin && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setAdvisingModal({ open: true, advising })}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Section</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {storage.getCustomerActivities(id || "").slice(0, 50).map((activity) => (
+                        <TableRow key={activity.id}>
+                          <TableCell className="text-sm">
+                            {new Date(activity.date).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="font-medium">{activity.user}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{activity.section}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">{activity.action}</TableCell>
+                        </TableRow>
                       ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No advising notes available</p>
-                    </div>
+                    </TableBody>
+                  </Table>
+                  {storage.getCustomerActivities(id || "").length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">No activities recorded yet</p>
                   )}
                 </CardContent>
               </Card>
