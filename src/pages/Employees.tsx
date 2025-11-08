@@ -114,12 +114,34 @@ const Employees = () => {
   const handleSuspend = (employeeId: string) => {
     const employee = employees.find((e) => e.id === employeeId);
     if (employee) {
-      const updated = { ...employee, status: "suspended" as const };
+      const updated = { 
+        ...employee, 
+        status: "suspended" as const,
+        suspendedAt: new Date().toISOString(),
+        suspendedBy: user?.username || "Admin",
+      };
       dataManager.updateEmployee(updated, user?.username || "Admin", user?.username || "admin");
       toast({
         title: "Employee Suspended",
         description: "Employee has been suspended",
         variant: "destructive",
+      });
+    }
+  };
+
+  const handleUnsuspend = (employeeId: string) => {
+    const employee = employees.find((e) => e.id === employeeId);
+    if (employee) {
+      const updated = { 
+        ...employee, 
+        status: "active" as const,
+        suspendedAt: undefined,
+        suspendedBy: undefined,
+      };
+      dataManager.updateEmployee(updated, user?.username || "Admin", user?.username || "admin");
+      toast({
+        title: "Employee Reactivated",
+        description: "Employee has been reactivated",
       });
     }
   };
@@ -247,6 +269,16 @@ const Employees = () => {
                         >
                           <UserX className="h-4 w-4 mr-1" />
                           Suspend
+                        </Button>
+                      )}
+                      {employee.status === "suspended" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUnsuspend(employee.id)}
+                        >
+                          <UserCheck className="h-4 w-4 mr-1" />
+                          Unsuspend
                         </Button>
                       )}
                       <Button

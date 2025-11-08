@@ -20,6 +20,7 @@ import {
   RTSDocument,
   ReleaseOrder,
   MeterFitting,
+  Task,
 } from "@/data/mockData";
 
 // Storage keys
@@ -39,6 +40,7 @@ const STORAGE_KEYS = {
   RTS_DOCUMENTS: "solar_rts_documents",
   RELEASE_ORDER: "solar_release_order",
   METER_FITTING: "solar_meter_fitting",
+  TASKS: "solar_tasks",
 };
 
 // Event for storage changes
@@ -269,6 +271,43 @@ class StorageManager {
   deleteEmployee(id: string): void {
     const employees = this.getEmployees().filter((e) => e.id !== id);
     this.setEmployees(employees);
+  }
+
+  // Task operations
+  getTasks(): Task[] {
+    return this.getItem<Task[]>(STORAGE_KEYS.TASKS, []);
+  }
+
+  setTasks(tasks: Task[]): void {
+    this.setItem(STORAGE_KEYS.TASKS, tasks, "tasks");
+  }
+
+  addTask(task: Task): void {
+    const tasks = this.getTasks();
+    tasks.push(task);
+    this.setTasks(tasks);
+  }
+
+  updateTask(task: Task): void {
+    const tasks = this.getTasks();
+    const index = tasks.findIndex((t) => t.id === task.id);
+    if (index !== -1) {
+      tasks[index] = task;
+      this.setTasks(tasks);
+    }
+  }
+
+  deleteTask(id: string): void {
+    const tasks = this.getTasks().filter((t) => t.id !== id);
+    this.setTasks(tasks);
+  }
+
+  getCustomerTasks(customerId: string): Task[] {
+    return this.getTasks().filter((t) => t.customerId === customerId);
+  }
+
+  getEmployeeTasks(employeeId: string): Task[] {
+    return this.getTasks().filter((t) => t.employeeId === employeeId);
   }
 
   // New Connection operations

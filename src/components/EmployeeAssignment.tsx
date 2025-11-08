@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,9 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, User } from "lucide-react";
-import { mockEmployees } from "@/data/mockData";
+import { UserPlus, User, Plus } from "lucide-react";
+import { Employee } from "@/data/mockData";
+import { storage, STORAGE_CHANGE_EVENT } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
+import { TaskManagement } from "./TaskManagement";
 
 interface EmployeeAssignmentProps {
   customerId: string;
@@ -35,10 +37,33 @@ export function EmployeeAssignment({
 }: EmployeeAssignmentProps) {
   const [open, setOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<string>(currentAssignee || "");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [showSuspended, setShowSuspended] = useState(false);
   const { toast } = useToast();
 
-  const activeEmployees = mockEmployees.filter((emp) => emp.status === "active");
-  const assignedEmployee = activeEmployees.find((emp) => emp.id === currentAssignee);
+  useEffect(() => {
+    loadEmployees();
+
+    const handleStorageChange = () => {
+      loadEmployees();
+    };
+
+    window.addEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    };
+  }, []);
+
+  const loadEmployees = () => {
+    setEmployees(storage.getEmployees());
+  };
+
+  const activeEmployees = employees.filter((emp) => emp.status === "active");
+  const displayedEmployees = showSuspended 
+    ? employees 
+    : employees.filter((emp) => emp.status !== "suspended");
+  const assignedEmployee = employees.find((emp) => emp.id === currentAssignee);
 
   const handleAssign = () => {
     if (!selectedEmployee) {
@@ -59,6 +84,24 @@ export function EmployeeAssignment({
     });
 
     setOpen(false);
+    
+    // Optionally open task creation modal
+    setTaskModalOpen(true);
+  };
+
+  const handleAutoAssign = () => {
+    // Find employee with least assignments
+    const sortedEmployees = [...activeEmployees].sort(
+      (a, b) => a.assignedCustomers.length - b.assignedCustomers.length
+    );
+
+    if (sortedEmployees.length > 0) {
+      setSelectedEmployee(sortedEmployees[0].id);
+      toast({
+        title: "Auto-Assigned",
+        description: `${sortedEmployees[0].name} (${sortedEmployees[0].assignedCustomers.length} projects)`,
+      });
+    }
   };
 
   return (
@@ -87,20 +130,50 @@ export function EmployeeAssignment({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
+          <div className="flex items-center justify-between">
             <label className="text-sm font-medium">Select Employee</label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAutoAssign}
+              >
+                Auto-Assign
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSuspended(!showSuspended)}
+              >
+                {showSuspended ? "Hide" : "Show"} Suspended
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
             <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose an employee..." />
               </SelectTrigger>
               <SelectContent>
-                {activeEmployees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id}>
+                {displayedEmployees.map((emp) => (
+                  <SelectItem 
+                    key={emp.id} 
+                    value={emp.id}
+                    disabled={emp.status === "suspended"}
+                  >
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4" />
                       <span>{emp.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {emp.assignedCustomers.length} projects
+                      <Badge 
+                        variant={emp.status === "suspended" ? "destructive" : "outline"} 
+                        className="text-xs"
+                      >
+                        {emp.status === "suspended" 
+                          ? "Suspended" 
+                          : `${emp.assignedCustomers.length} projects`}
                       </Badge>
                     </div>
                   </SelectItem>
@@ -130,9 +203,19 @@ export function EmployeeAssignment({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleAssign}>Assign</Button>
+          <Button onClick={handleAssign}>
+            Assign {selectedEmployee && "& Create Task"}
+          </Button>
         </div>
       </DialogContent>
+
+      <TaskManagement
+        customerId={customerId}
+        customerName={customerName}
+        open={taskModalOpen}
+        onOpenChange={setTaskModalOpen}
+        selectedEmployee={employees.find((e) => e.id === selectedEmployee)}
+      />
     </Dialog>
   );
 }

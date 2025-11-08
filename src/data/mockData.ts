@@ -10,6 +10,23 @@ export interface Employee {
   assignedCustomers: string[];
   createdBy: string;
   createdDate: string;
+  suspendedAt?: string;
+  suspendedBy?: string;
+  suspensionReason?: string;
+}
+
+export interface Task {
+  id: string;
+  customerId: string;
+  employeeId: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  priority: "low" | "medium" | "high";
+  status: "pending" | "in_progress" | "completed";
+  createdBy: string;
+  createdAt: string;
 }
 
 export interface ActivityLog {

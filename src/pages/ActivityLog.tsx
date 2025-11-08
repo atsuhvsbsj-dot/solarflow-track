@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { mockActivities, mockCustomers } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { mockCustomers, ActivityLog as ActivityLogType } from "@/data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Calendar, FileText } from "lucide-react";
+import { Search, User, Calendar, FileText, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { storage, STORAGE_CHANGE_EVENT } from "@/lib/storage";
 import {
   Select,
   SelectContent,
@@ -15,8 +17,27 @@ import {
 const ActivityLog = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSection, setFilterSection] = useState<string>("all");
+  const [activities, setActivities] = useState<ActivityLogType[]>([]);
+  const navigate = useNavigate();
 
-  const filteredActivities = mockActivities.filter((activity) => {
+  useEffect(() => {
+    loadActivities();
+
+    const handleStorageChange = () => {
+      loadActivities();
+    };
+
+    window.addEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    return () => {
+      window.removeEventListener(STORAGE_CHANGE_EVENT, handleStorageChange);
+    };
+  }, []);
+
+  const loadActivities = () => {
+    setActivities(storage.getActivities());
+  };
+
+  const filteredActivities = activities.filter((activity) => {
     const matchesSearch =
       activity.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.action.toLowerCase().includes(searchTerm.toLowerCase());
@@ -38,8 +59,33 @@ const ActivityLog = () => {
       Wiring: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
       Inspection: "bg-purple-500/10 text-purple-500 border-purple-500/20",
       Commissioning: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      Assignment: "bg-orange-500/10 text-orange-500 border-orange-500/20",
+      Employee: "bg-pink-500/10 text-pink-500 border-pink-500/20",
+      Customer: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
     };
     return colors[section] || "bg-muted text-muted-foreground";
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / 60000);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} min${diffInMinutes > 1 ? 's' : ''} ago`;
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const handleActivityClick = (activity: ActivityLogType) => {
+    if (activity.customerId && activity.customerId !== "") {
+      // Navigate to customer detail page
+      navigate(`/customers/${activity.customerId}`);
+    }
   };
 
   return (
@@ -86,16 +132,23 @@ const ActivityLog = () => {
             {filteredActivities.map((activity) => (
               <div
                 key={activity.id}
-                className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                className={`flex items-start gap-4 p-4 border rounded-lg transition-all ${
+                  activity.customerId && activity.customerId !== ""
+                    ? "cursor-pointer hover:bg-muted/50 hover:border-primary/50"
+                    : "hover:bg-muted/30"
+                }`}
+                onClick={() => handleActivityClick(activity)}
               >
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={getSectionColor(activity.section)} variant="outline">
                       {activity.section}
                     </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {getCustomerName(activity.customerId)}
-                    </span>
+                    {activity.customerId && activity.customerId !== "" && (
+                      <span className="text-sm font-medium text-foreground">
+                        {getCustomerName(activity.customerId)}
+                      </span>
+                    )}
                   </div>
                   
                   <div className="flex items-start gap-2">
@@ -109,9 +162,17 @@ const ActivityLog = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(activity.date).toLocaleString()}
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {getTimeAgo(activity.date)}
+                    </div>
+                    {activity.customerId && activity.customerId !== "" && (
+                      <div className="flex items-center gap-1 text-primary">
+                        <span>View Details</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
