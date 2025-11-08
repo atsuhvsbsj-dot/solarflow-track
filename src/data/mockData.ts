@@ -99,16 +99,93 @@ export interface Inspection {
   endDate?: string;
 }
 
-export interface Commissioning {
+// New Connection Section
+export interface NewConnection {
+  id: string;
   customerId: string;
-  releaseOrderDate?: string;
-  releaseOrderNumber?: string;
-  meterFittingDate?: string;
+  documentName: string;
+  submitted: boolean;
+  uploadDate?: string;
+  notes?: string;
+  doneBy?: string;
+  documentsHandedTo?: string;
+  msedclSubmissionDate?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Sanction Section
+export interface Sanction {
+  customerId: string;
+  sanctionNumber?: string;
+  kw?: number;
+  date?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Jansamarth Section
+export interface Jansamarth {
+  id: string;
+  customerId: string;
+  documentName: string;
+  submitted: boolean;
+  documentsHandTo?: string;
+  inHandToConsumer: boolean;
+  date?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Completion Report Section
+export interface CompletionReport {
+  id: string;
+  customerId: string;
+  documentName: string;
+  remark?: string;
+  status: Status;
+  doneBy?: string;
+  date?: string;
+  fileId?: string;
+}
+
+// RTS Documents Section
+export interface RTSDocument {
+  id: string;
+  customerId: string;
+  documentName: string;
+  remark?: string;
+  uploaded: boolean;
+  date?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Release Order Section
+export interface ReleaseOrder {
+  customerId: string;
+  date?: string;
+  number?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Meter Fitting Section
+export interface MeterFitting {
+  customerId: string;
+  date?: string;
   generationMeterNo?: string;
   adaniMeterNo?: string;
   systemStartDate?: string;
+  fileId?: string;
+  status: Status;
+}
+
+// Commissioning Section (Updated)
+export interface Commissioning {
+  customerId: string;
+  commissioningReportFileId?: string;
   subsidyReceivedDate?: string;
-  commissioningReport?: string;
   status: Status;
   remark?: string;
   startDate?: string;
@@ -451,13 +528,8 @@ export const mockInspections: Inspection[] = [
 export const mockCommissioning: Record<string, Commissioning> = {
   "1": {
     customerId: "1",
-    releaseOrderDate: "2024-02-15",
-    releaseOrderNumber: "RO001",
-    meterFittingDate: "2024-02-20",
-    generationMeterNo: "GM12345",
-    adaniMeterNo: "AM67890",
-    systemStartDate: "2024-02-21",
-    commissioningReport: "All systems operational",
+    commissioningReportFileId: "cr_file_1",
+    subsidyReceivedDate: "2024-02-21",
     status: "completed",
     remark: "System commissioned successfully",
     startDate: "2024-02-15",

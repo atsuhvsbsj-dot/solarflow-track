@@ -13,6 +13,13 @@ import {
   ActivityLog,
   Employee,
   Status,
+  NewConnection,
+  Sanction,
+  Jansamarth,
+  CompletionReport,
+  RTSDocument,
+  ReleaseOrder,
+  MeterFitting,
 } from "@/data/mockData";
 
 // Storage keys
@@ -25,6 +32,13 @@ const STORAGE_KEYS = {
   COMMISSIONING: "solar_commissioning",
   ACTIVITIES: "solar_activities",
   EMPLOYEES: "solar_employees",
+  NEW_CONNECTION: "solar_new_connection",
+  SANCTION: "solar_sanction",
+  JANSAMARTH: "solar_jansamarth",
+  COMPLETION_REPORT: "solar_completion_report",
+  RTS_DOCUMENTS: "solar_rts_documents",
+  RELEASE_ORDER: "solar_release_order",
+  METER_FITTING: "solar_meter_fitting",
 };
 
 // Event for storage changes
@@ -257,6 +271,151 @@ class StorageManager {
     this.setEmployees(employees);
   }
 
+  // New Connection operations
+  getNewConnections(): NewConnection[] {
+    return this.getItem<NewConnection[]>(STORAGE_KEYS.NEW_CONNECTION, []);
+  }
+
+  setNewConnections(connections: NewConnection[]): void {
+    this.setItem(STORAGE_KEYS.NEW_CONNECTION, connections, "new_connection");
+  }
+
+  getCustomerNewConnections(customerId: string): NewConnection[] {
+    return this.getNewConnections().filter((nc) => nc.customerId === customerId);
+  }
+
+  updateNewConnection(connection: NewConnection): void {
+    const connections = this.getNewConnections();
+    const index = connections.findIndex((nc) => nc.id === connection.id);
+    if (index !== -1) {
+      connections[index] = connection;
+      this.setNewConnections(connections);
+    }
+  }
+
+  // Sanction operations
+  getSanctions(): Record<string, Sanction> {
+    return this.getItem<Record<string, Sanction>>(STORAGE_KEYS.SANCTION, {});
+  }
+
+  setSanctions(sanctions: Record<string, Sanction>): void {
+    this.setItem(STORAGE_KEYS.SANCTION, sanctions, "sanction");
+  }
+
+  getCustomerSanction(customerId: string): Sanction | undefined {
+    return this.getSanctions()[customerId];
+  }
+
+  updateSanction(customerId: string, sanction: Sanction): void {
+    const sanctions = this.getSanctions();
+    sanctions[customerId] = sanction;
+    this.setSanctions(sanctions);
+  }
+
+  // Jansamarth operations
+  getJansamarth(): Jansamarth[] {
+    return this.getItem<Jansamarth[]>(STORAGE_KEYS.JANSAMARTH, []);
+  }
+
+  setJansamarth(jansamarth: Jansamarth[]): void {
+    this.setItem(STORAGE_KEYS.JANSAMARTH, jansamarth, "jansamarth");
+  }
+
+  getCustomerJansamarth(customerId: string): Jansamarth[] {
+    return this.getJansamarth().filter((j) => j.customerId === customerId);
+  }
+
+  updateJansamarth(item: Jansamarth): void {
+    const jansamarth = this.getJansamarth();
+    const index = jansamarth.findIndex((j) => j.id === item.id);
+    if (index !== -1) {
+      jansamarth[index] = item;
+      this.setJansamarth(jansamarth);
+    }
+  }
+
+  // Completion Report operations
+  getCompletionReports(): CompletionReport[] {
+    return this.getItem<CompletionReport[]>(STORAGE_KEYS.COMPLETION_REPORT, []);
+  }
+
+  setCompletionReports(reports: CompletionReport[]): void {
+    this.setItem(STORAGE_KEYS.COMPLETION_REPORT, reports, "completion_report");
+  }
+
+  getCustomerCompletionReports(customerId: string): CompletionReport[] {
+    return this.getCompletionReports().filter((cr) => cr.customerId === customerId);
+  }
+
+  updateCompletionReport(report: CompletionReport): void {
+    const reports = this.getCompletionReports();
+    const index = reports.findIndex((r) => r.id === report.id);
+    if (index !== -1) {
+      reports[index] = report;
+      this.setCompletionReports(reports);
+    }
+  }
+
+  // RTS Documents operations
+  getRTSDocuments(): RTSDocument[] {
+    return this.getItem<RTSDocument[]>(STORAGE_KEYS.RTS_DOCUMENTS, []);
+  }
+
+  setRTSDocuments(docs: RTSDocument[]): void {
+    this.setItem(STORAGE_KEYS.RTS_DOCUMENTS, docs, "rts_documents");
+  }
+
+  getCustomerRTSDocuments(customerId: string): RTSDocument[] {
+    return this.getRTSDocuments().filter((rts) => rts.customerId === customerId);
+  }
+
+  updateRTSDocument(doc: RTSDocument): void {
+    const docs = this.getRTSDocuments();
+    const index = docs.findIndex((d) => d.id === doc.id);
+    if (index !== -1) {
+      docs[index] = doc;
+      this.setRTSDocuments(docs);
+    }
+  }
+
+  // Release Order operations
+  getReleaseOrders(): Record<string, ReleaseOrder> {
+    return this.getItem<Record<string, ReleaseOrder>>(STORAGE_KEYS.RELEASE_ORDER, {});
+  }
+
+  setReleaseOrders(orders: Record<string, ReleaseOrder>): void {
+    this.setItem(STORAGE_KEYS.RELEASE_ORDER, orders, "release_order");
+  }
+
+  getCustomerReleaseOrder(customerId: string): ReleaseOrder | undefined {
+    return this.getReleaseOrders()[customerId];
+  }
+
+  updateReleaseOrder(customerId: string, order: ReleaseOrder): void {
+    const orders = this.getReleaseOrders();
+    orders[customerId] = order;
+    this.setReleaseOrders(orders);
+  }
+
+  // Meter Fitting operations
+  getMeterFittings(): Record<string, MeterFitting> {
+    return this.getItem<Record<string, MeterFitting>>(STORAGE_KEYS.METER_FITTING, {});
+  }
+
+  setMeterFittings(fittings: Record<string, MeterFitting>): void {
+    this.setItem(STORAGE_KEYS.METER_FITTING, fittings, "meter_fitting");
+  }
+
+  getCustomerMeterFitting(customerId: string): MeterFitting | undefined {
+    return this.getMeterFittings()[customerId];
+  }
+
+  updateMeterFitting(customerId: string, fitting: MeterFitting): void {
+    const fittings = this.getMeterFittings();
+    fittings[customerId] = fitting;
+    this.setMeterFittings(fittings);
+  }
+
   // Clean up all data for a customer
   private deleteCustomerData(customerId: string): void {
     // Remove documents
@@ -280,6 +439,37 @@ class StorageManager {
     const commissioning = this.getCommissioning();
     delete commissioning[customerId];
     this.setItem(STORAGE_KEYS.COMMISSIONING, commissioning);
+
+    // Remove new connections
+    const newConnections = this.getNewConnections().filter((nc) => nc.customerId !== customerId);
+    this.setItem(STORAGE_KEYS.NEW_CONNECTION, newConnections);
+
+    // Remove sanction
+    const sanctions = this.getSanctions();
+    delete sanctions[customerId];
+    this.setItem(STORAGE_KEYS.SANCTION, sanctions);
+
+    // Remove jansamarth
+    const jansamarth = this.getJansamarth().filter((j) => j.customerId !== customerId);
+    this.setItem(STORAGE_KEYS.JANSAMARTH, jansamarth);
+
+    // Remove completion reports
+    const completionReports = this.getCompletionReports().filter((cr) => cr.customerId !== customerId);
+    this.setItem(STORAGE_KEYS.COMPLETION_REPORT, completionReports);
+
+    // Remove RTS documents
+    const rtsDocuments = this.getRTSDocuments().filter((rts) => rts.customerId !== customerId);
+    this.setItem(STORAGE_KEYS.RTS_DOCUMENTS, rtsDocuments);
+
+    // Remove release order
+    const releaseOrders = this.getReleaseOrders();
+    delete releaseOrders[customerId];
+    this.setItem(STORAGE_KEYS.RELEASE_ORDER, releaseOrders);
+
+    // Remove meter fitting
+    const meterFittings = this.getMeterFittings();
+    delete meterFittings[customerId];
+    this.setItem(STORAGE_KEYS.METER_FITTING, meterFittings);
 
     // Keep activities for audit trail
   }

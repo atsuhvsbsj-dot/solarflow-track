@@ -9,6 +9,7 @@ import { Commissioning, Status } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { logActivity } from "@/utils/activityUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { Upload } from "lucide-react";
 
 interface CommissioningEditModalProps {
   commissioning: Commissioning | null;
@@ -26,6 +27,25 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
       status: "pending",
     }
   );
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Store file in localStorage as base64 for demo
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileData = reader.result as string;
+        const fileId = `comm_report_${Date.now()}`;
+        localStorage.setItem(fileId, fileData);
+        setFormData({ ...formData, commissioningReportFileId: fileId });
+        toast({
+          title: "File Uploaded",
+          description: `Commissioning report uploaded successfully`,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = () => {
     onSave(formData);
@@ -92,69 +112,6 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="releaseOrderDate">Release Order Date</Label>
-              <Input
-                id="releaseOrderDate"
-                type="date"
-                value={formData.releaseOrderDate || ""}
-                onChange={(e) => setFormData({ ...formData, releaseOrderDate: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="releaseOrderNumber">Release Order Number</Label>
-              <Input
-                id="releaseOrderNumber"
-                value={formData.releaseOrderNumber || ""}
-                onChange={(e) => setFormData({ ...formData, releaseOrderNumber: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="meterFittingDate">Meter Fitting Date</Label>
-              <Input
-                id="meterFittingDate"
-                type="date"
-                value={formData.meterFittingDate || ""}
-                onChange={(e) => setFormData({ ...formData, meterFittingDate: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="systemStartDate">System Start Date</Label>
-              <Input
-                id="systemStartDate"
-                type="date"
-                value={formData.systemStartDate || ""}
-                onChange={(e) => setFormData({ ...formData, systemStartDate: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="generationMeterNo">Generation Meter No.</Label>
-              <Input
-                id="generationMeterNo"
-                value={formData.generationMeterNo || ""}
-                onChange={(e) => setFormData({ ...formData, generationMeterNo: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="adaniMeterNo">Adani Meter No.</Label>
-              <Input
-                id="adaniMeterNo"
-                value={formData.adaniMeterNo || ""}
-                onChange={(e) => setFormData({ ...formData, adaniMeterNo: e.target.value })}
-              />
-            </div>
-          </div>
-
           <div className="grid gap-2">
             <Label htmlFor="subsidyReceivedDate">Subsidy Received Date</Label>
             <Input
@@ -166,13 +123,21 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="commissioningReport">Commissioning Report</Label>
-            <Textarea
-              id="commissioningReport"
-              value={formData.commissioningReport || ""}
-              onChange={(e) => setFormData({ ...formData, commissioningReport: e.target.value })}
-              rows={3}
-            />
+            <Label>Commissioning Report</Label>
+            <div className="flex gap-2">
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileUpload}
+                className="flex-1"
+              />
+              {formData.commissioningReportFileId && (
+                <Button variant="outline" size="sm">
+                  <Upload className="h-4 w-4 mr-1" />
+                  Uploaded
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-2">

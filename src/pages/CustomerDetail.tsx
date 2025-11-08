@@ -490,10 +490,16 @@ const CustomerDetail = () => {
                           <StatusBadge status={commissioning.status} />
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">System Start Date</p>
-                          <p className="font-medium">{commissioning.systemStartDate || "-"}</p>
+                          <p className="text-sm text-muted-foreground">Subsidy Received</p>
+                          <p className="font-medium">{commissioning.subsidyReceivedDate || "-"}</p>
                         </div>
                       </div>
+                      {commissioning.commissioningReportFileId && (
+                        <div className="bg-muted p-3 rounded-md">
+                          <p className="text-xs text-muted-foreground mb-1">Commissioning Report Uploaded</p>
+                          <Badge variant="outline" className="bg-success/10 text-success">✓ Uploaded</Badge>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-muted-foreground text-center py-8">No commissioning data available</p>
