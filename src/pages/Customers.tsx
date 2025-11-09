@@ -194,23 +194,23 @@ const Customers = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Customers</h2>
-          <p className="text-muted-foreground">
-            Manage all customer information ({filteredCustomers.length} customers)
+          <h1 className="text-4xl font-heading font-bold text-foreground mb-2">Customers</h1>
+          <p className="text-muted-foreground text-lg">
+            Manage all customer information • {filteredCustomers.length} total
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport}>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleExport} className="shadow-sm">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           {isAdmin && (
             <>
               <ExcelImport onImportComplete={handleImportComplete} />
-              <Button onClick={() => setModalOpen(true)}>
+              <Button onClick={() => setModalOpen(true)} className="shadow-md">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Customer
               </Button>
@@ -219,89 +219,95 @@ const Customers = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or consumer number..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      <Card className="shadow-card">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or consumer number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger>
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger>
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger>
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="name">Name (A-Z)</SelectItem>
-            <SelectItem value="date">Date (Newest First)</SelectItem>
-            <SelectItem value="capacity">Capacity (High to Low)</SelectItem>
-            <SelectItem value="amount">Amount (High to Low)</SelectItem>
-            <SelectItem value="progress">Progress (High to Low)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                <SelectItem value="name">Name (A-Z)</SelectItem>
+                <SelectItem value="date">Date (Newest First)</SelectItem>
+                <SelectItem value="capacity">Capacity (High to Low)</SelectItem>
+                <SelectItem value="amount">Amount (High to Low)</SelectItem>
+                <SelectItem value="progress">Progress (High to Low)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredCustomers.map((customer) => (
-          <Card key={customer.id} className="hover:shadow-lg transition-all group">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="text-lg">{customer.name}</span>
+          <Card key={customer.id} className="hover-lift cursor-pointer group border-2 hover:border-primary/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between gap-2">
+                <span className="text-lg truncate">{customer.name}</span>
                 {getProgressBadge(customer.progress)}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Consumer No:</span>
-                <span className="font-medium">{customer.consumerNumber}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Mobile:</span>
-                <span className="font-medium">{customer.mobile}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Capacity:</span>
-                <span className="font-medium">{customer.systemCapacity} kW</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Order Amount:</span>
-                <span className="font-medium">₹{customer.orderAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Order Date:</span>
-                <span className="font-medium">
-                  {new Date(customer.orderDate).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div className="space-y-1 pt-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Project Progress</span>
-                  <span className="font-medium">{customer.progress}%</span>
+            <CardContent className="space-y-3.5">
+              <div className="space-y-2.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Consumer No:</span>
+                  <span className="font-medium">{customer.consumerNumber}</span>
                 </div>
-                <Progress value={customer.progress} className="h-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mobile:</span>
+                  <span className="font-medium">{customer.mobile}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Capacity:</span>
+                  <span className="font-semibold text-secondary">{customer.systemCapacity} kW</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Order Amount:</span>
+                  <span className="font-semibold text-primary">₹{customer.orderAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Order Date:</span>
+                  <span className="font-medium">
+                    {new Date(customer.orderDate).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="space-y-2 pt-3 border-t">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">Project Progress</span>
+                  <span className="font-semibold text-foreground">{customer.progress}%</span>
+                </div>
+                <Progress value={customer.progress} className="h-2.5" />
+              </div>
+
+              <div className="flex gap-2 pt-3">
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   className="flex-1"
                   onClick={() => navigate(`/customers/${customer.id}`)}
                 >
@@ -338,10 +344,16 @@ const Customers = () => {
       </div>
 
       {filteredCustomers.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground text-center">
+        <Card className="border-2 border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Search className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground text-center text-lg font-medium">
               No customers found matching your search.
+            </p>
+            <p className="text-muted-foreground text-center text-sm mt-2">
+              Try adjusting your filters or search terms
             </p>
           </CardContent>
         </Card>

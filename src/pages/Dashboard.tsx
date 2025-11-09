@@ -94,17 +94,17 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Welcome back, {user?.username}! ({user?.role})
+          <h1 className="text-4xl font-heading font-bold text-foreground mb-2">Dashboard</h1>
+          <p className="text-muted-foreground text-lg">
+            Welcome back, <span className="font-semibold text-foreground">{user?.username}</span> • {user?.role}
           </p>
         </div>
         {isAdmin && (
-          <Button onClick={() => navigate("/customers")}>
+          <Button onClick={() => navigate("/customers")} className="shadow-md" size="lg">
             <Users className="h-4 w-4 mr-2" />
             Manage Customers
           </Button>
@@ -114,65 +114,83 @@ const Dashboard = () => {
       <InspectionDeadlineChecker />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate("/customers")}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="hover-lift cursor-pointer border-2 hover:border-primary/50" onClick={() => navigate("/customers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Customers</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCustomers}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-3xl font-heading font-bold text-foreground">{totalCustomers}</div>
+            <p className="text-xs text-muted-foreground mt-1">
               {activeProjects} active projects
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate("/customers")}>
+        <Card className="hover-lift cursor-pointer border-2 hover:border-warning/50" onClick={() => navigate("/customers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Projects</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-warning" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{activeProjects}</div>
-            <p className="text-xs text-muted-foreground">Currently in progress</p>
+            <div className="text-3xl font-heading font-bold text-warning">{activeProjects}</div>
+            <p className="text-xs text-muted-foreground mt-1">Currently in progress</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate("/customers")}>
+        <Card className="hover-lift cursor-pointer border-2 hover:border-success/50" onClick={() => navigate("/customers")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-success" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+              <CheckCircle className="h-5 w-5 text-success" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{completedProjects}</div>
-            <p className="text-xs text-muted-foreground">Successfully completed</p>
+            <div className="text-3xl font-heading font-bold text-success">{completedProjects}</div>
+            <p className="text-xs text-muted-foreground mt-1">Successfully completed</p>
           </CardContent>
         </Card>
 
-        <Card className="hover-scale cursor-pointer" onClick={() => navigate("/documents")}>
+        <Card className="hover-lift cursor-pointer border-2 hover:border-destructive/50" onClick={() => navigate("/documents")}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Documents</CardTitle>
-            <FileWarning className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Documents</CardTitle>
+            <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+              <FileWarning className="h-5 w-5 text-destructive" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{pendingDocuments}</div>
-            <p className="text-xs text-muted-foreground">Awaiting upload</p>
+            <div className="text-3xl font-heading font-bold text-destructive">{pendingDocuments}</div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting upload</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StatusChart
-          pending={pendingProjects}
-          inProgress={activeProjects}
-          completed={completedProjects}
-        />
-
-        <Card>
+        <Card className="shadow-card">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="font-heading">Project Status Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatusChart
+              pending={pendingProjects}
+              inProgress={activeProjects}
+              completed={completedProjects}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="font-heading flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Recent Activity
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -213,11 +231,11 @@ const Dashboard = () => {
       </div>
 
       {/* Customer List */}
-      <Card>
+      <Card className="shadow-card">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle>All Customers</CardTitle>
-            <div className="relative w-full md:w-72">
+            <CardTitle className="font-heading text-2xl">All Customers</CardTitle>
+            <div className="relative w-full md:w-80">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search customers..."
@@ -238,33 +256,39 @@ const Dashboard = () => {
               filteredCustomers.map((customer) => (
                 <div
                   key={customer.id}
-                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                  className="flex items-center justify-between p-5 rounded-xl border-2 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
                   onClick={() => navigate(`/customers/${customer.id}`)}
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{customer.name}</h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-heading font-semibold text-lg">{customer.name}</h3>
                       {getProgressBadge(customer.progress)}
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>{customer.consumerNumber}</span>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Consumer:</span> {customer.consumerNumber}
+                      </span>
                       <span>•</span>
-                      <span>{customer.systemCapacity} kW</span>
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Capacity:</span> {customer.systemCapacity} kW
+                      </span>
                       <span>•</span>
-                      <span>₹{customer.orderAmount.toLocaleString()}</span>
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">Amount:</span> ₹{customer.orderAmount.toLocaleString()}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <div className="text-sm font-medium">{customer.progress}%</div>
-                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden mt-1">
+                      <div className="text-sm font-semibold mb-1">{customer.progress}%</div>
+                      <div className="w-32 h-2.5 bg-muted rounded-full overflow-hidden">
                         <div
-                          className={`h-full ${getProgressColor(customer.progress)} transition-all`}
+                          className={`h-full ${getProgressColor(customer.progress)} transition-all duration-500`}
                           style={{ width: `${customer.progress}%` }}
                         />
                       </div>
                     </div>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <TrendingUp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </div>
               ))
