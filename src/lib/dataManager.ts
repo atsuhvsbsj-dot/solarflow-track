@@ -17,7 +17,9 @@ import {
   ActivityLog,
   Employee,
   Status,
+  Task,
 } from "@/data/mockData";
+import { STORAGE_CHANGE_EVENT } from "./storage";
 
 class DataManager {
   // ==================== CUSTOMER OPERATIONS ====================
@@ -349,6 +351,24 @@ class DataManager {
 
   updateEmployee(employee: Employee, userName: string, userId: string): void {
     storage.updateEmployee(employee);
+    
+    // If suspended, update all assigned tasks
+    if (employee.status === "suspended") {
+      const tasks = storage.getTasks().filter((t) => t.assignedTo === employee.id);
+      tasks.forEach((task) => {
+        storage.updateTask({ ...task, status: "pending_reassign" });
+      });
+    }
+    
+    // If unsuspended, reactivate tasks
+    if (employee.status === "active") {
+      const tasks = storage.getTasks().filter((t) => 
+        t.assignedTo === employee.id && t.status === "pending_reassign"
+      );
+      tasks.forEach((task) => {
+        storage.updateTask({ ...task, status: "pending" });
+      });
+    }
 
     this.logActivity({
       id: `act_${Date.now()}`,
@@ -356,9 +376,15 @@ class DataManager {
       userId,
       customerId: "",
       section: "Employee",
-      action: `Updated employee ${employee.name}`,
+      action: employee.status === "suspended" 
+        ? `Suspended employee ${employee.name}` 
+        : employee.status === "active"
+        ? `Unsuspended employee ${employee.name}`
+        : `Updated employee ${employee.name}`,
       date: new Date().toISOString(),
     });
+    
+    window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
   }
 
   deleteEmployee(employeeId: string, userName: string, userId: string): void {
@@ -407,6 +433,164 @@ class DataManager {
         date: new Date().toISOString(),
       });
     }
+  }
+
+  // ==================== TASK MANAGEMENT WITH TWO-WAY BINDING ====================
+
+  addTask(task: Task, userName: string, userId: string): void {
+    storage.addTask(task);
+    
+    // If technician role, update wiring section
+    if (task.role === "technician") {
+      const wiring = storage.getCustomerWiring(task.customerId);
+      const employee = storage.getEmployees().find((e) => e.id === task.assignedTo);
+      
+      if (wiring && employee) {
+        storage.updateWiring(task.customerId, {
+          ...wiring,
+          technicianName: employee.name,
+          startDate: task.startDate,
+          endDate: task.endDate,
+          status: "in_progress" as Status,
+        });
+      }
+    }
+
+    this.logActivity({
+      id: `act${Date.now()}`,
+      user: userName,
+      userId: userId,
+      customerId: task.customerId,
+      section: "Tasks",
+      action: `Created task: ${task.title}`,
+      date: new Date().toISOString(),
+    });
+    this.recalculateProgress(task.customerId);
+    window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
+  }
+
+  updateTask(taskId: string, updates: Partial<Task>, userName: string, userId: string): void {
+    const task = storage.getTasks().find((t) => t.id === taskId);
+    if (!task) return;
+
+    const updatedTask = { ...task, ...updates };
+    storage.updateTask(updatedTask);
+
+    // Update wiring section if technician task dates change
+    if (task.role === "technician" && (updates.startDate || updates.endDate)) {
+      const wiring = storage.getCustomerWiring(task.customerId);
+      if (wiring) {
+        storage.updateWiring(task.customerId, {
+          ...wiring,
+          startDate: updates.startDate || wiring.startDate,
+          endDate: updates.endDate || wiring.endDate,
+        });
+      }
+    }
+
+    this.logActivity({
+      id: `act${Date.now()}`,
+      user: userName,
+      userId: userId,
+      customerId: task.customerId,
+      section: "Tasks",
+      action: `Updated task: ${task.title}`,
+      date: new Date().toISOString(),
+    });
+    this.recalculateProgress(task.customerId);
+    window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
+  }
+
+  // Check task deadlines
+  checkTaskDeadlines(): { nearDeadline: Task[]; overdue: Task[] } {
+    const tasks = storage.getTasks();
+    const today = new Date();
+    const nearDeadline: Task[] = [];
+    const overdue: Task[] = [];
+
+    tasks.forEach((task) => {
+      if (task.status === "completed" || task.status === "pending_reassign") return;
+
+      const endDate = new Date(task.endDate);
+      const daysUntilDue = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysUntilDue < 0) {
+        overdue.push(task);
+      } else if (daysUntilDue <= 3) {
+        nearDeadline.push(task);
+      }
+    });
+
+    return { nearDeadline, overdue };
+  }
+
+  // Inspection with rework flow
+  updateInspectionWithRework(
+    inspection: Inspection,
+    approved: boolean,
+    userName: string,
+    userId: string
+  ): void {
+    const updated = { ...inspection, approved, status: (approved ? "completed" : "rejected") as Status };
+    storage.updateInspection(updated);
+
+    if (!approved) {
+      // Reopen wiring for rework
+      const wiring = storage.getCustomerWiring(inspection.customerId);
+      if (wiring) {
+        storage.updateWiring(inspection.customerId, {
+          ...wiring,
+          status: "in_progress" as Status,
+        });
+      }
+
+      // Create rework task for technician
+      const technicianTask = storage.getTasks().find((t) => 
+        t.customerId === inspection.customerId && t.role === "technician"
+      );
+
+      if (technicianTask) {
+        const reworkTask: Task = {
+          id: `task${Date.now()}`,
+          customerId: inspection.customerId,
+          title: `Rework Required - ${inspection.document}`,
+          description: `Inspection rejected. Please address issues and resubmit.`,
+          assignedTo: technicianTask.assignedTo,
+          startDate: new Date().toISOString().split("T")[0],
+          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          status: "in_progress",
+          priority: "high",
+          role: "technician",
+          createdBy: userName,
+          createdDate: new Date().toISOString().split("T")[0],
+        };
+        storage.addTask(reworkTask);
+      }
+
+      this.logActivity({
+        id: `act${Date.now()}`,
+        user: userName,
+        userId: userId,
+        customerId: inspection.customerId,
+        section: "Inspection",
+        action: `Inspection rejected for ${inspection.document} - Rework assigned`,
+        date: new Date().toISOString(),
+      });
+    } else {
+      this.logActivity({
+        id: `act${Date.now()}`,
+        user: userName,
+        userId: userId,
+        customerId: inspection.customerId,
+        section: "Inspection",
+        action: `Inspection approved for ${inspection.document}`,
+        date: new Date().toISOString(),
+      });
+    }
+
+    this.recalculateProgress(inspection.customerId);
+    lockDependentSections(inspection.customerId, "inspection");
+    window.dispatchEvent(new Event(STORAGE_CHANGE_EVENT));
   }
 
   // ==================== PROGRESS CALCULATION ====================

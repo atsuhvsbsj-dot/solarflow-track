@@ -83,8 +83,21 @@ const ActivityLog = () => {
 
   const handleActivityClick = (activity: ActivityLogType) => {
     if (activity.customerId && activity.customerId !== "") {
-      // Navigate to customer detail page
-      navigate(`/customers/${activity.customerId}`);
+      // Navigate to customer detail page with section hash
+      const sectionMap: Record<string, string> = {
+        documents: "#documents",
+        document: "#documents",
+        checklist: "#checklist",
+        wiring: "#wiring",
+        inspection: "#inspection",
+        commissioning: "#commissioning",
+        tasks: "#tasks",
+        task: "#tasks",
+      };
+      
+      const sectionKey = activity.section.toLowerCase();
+      const hash = sectionMap[sectionKey] || "";
+      navigate(`/customers/${activity.customerId}${hash}`);
     }
   };
 

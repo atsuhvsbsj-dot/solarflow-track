@@ -307,7 +307,7 @@ class StorageManager {
   }
 
   getEmployeeTasks(employeeId: string): Task[] {
-    return this.getTasks().filter((t) => t.employeeId === employeeId);
+    return this.getTasks().filter((t) => t.assignedTo === employeeId);
   }
 
   // New Connection operations

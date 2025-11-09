@@ -35,9 +35,22 @@ export function FileUpload({
 
   const existingFile = existingFileId ? getFile(existingFileId) : null;
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    const validTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Only PDF, JPG, and PNG files are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB
@@ -51,15 +64,32 @@ export function FileUpload({
     }
 
     setUploading(true);
+    setUploadProgress(0);
 
     try {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
       const uploadedFile = await saveFile(file, documentId);
-      onUploadComplete(uploadedFile.id);
       
-      toast({
-        title: "Upload Successful",
-        description: `${file.name} has been uploaded`,
-      });
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        onUploadComplete(uploadedFile.id);
+        toast({
+          title: "Upload Successful",
+          description: `${file.name} has been uploaded`,
+        });
+      }, 300);
     } catch (error) {
       toast({
         title: "Upload Failed",
@@ -67,7 +97,10 @@ export function FileUpload({
         variant: "destructive",
       });
     } finally {
-      setUploading(false);
+      setTimeout(() => {
+        setUploading(false);
+        setUploadProgress(0);
+      }, 500);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -171,18 +204,28 @@ export function FileUpload({
           </div>
         </div>
       ) : (
-        <label
-          htmlFor={`file-${documentId}`}
-          className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-        >
-          <Upload className="h-4 w-4" />
-          <span className="text-sm">
-            {uploading ? "Uploading..." : "Click to upload"}
-          </span>
-          <Badge variant="outline" className="text-xs">
-            {acceptedFormats.replace(/\./g, '').replace(/,/g, ', ').toUpperCase()}
-          </Badge>
-        </label>
+        <div className="space-y-2">
+          <label
+            htmlFor={`file-${documentId}`}
+            className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+          >
+            <Upload className="h-4 w-4" />
+            <span className="text-sm">
+              {uploading ? `Uploading... ${uploadProgress}%` : "Click to upload"}
+            </span>
+            <Badge variant="outline" className="text-xs">
+              PDF, JPG, PNG
+            </Badge>
+          </label>
+          {uploading && (
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-primary h-full transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Image Preview Dialog */}

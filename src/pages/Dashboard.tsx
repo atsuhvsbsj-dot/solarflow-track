@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusChart } from "@/components/StatusChart";
+import { InspectionDeadlineChecker } from "@/components/InspectionDeadlineChecker";
 import {
   Users,
   FileWarning,
@@ -109,6 +110,8 @@ const Dashboard = () => {
           </Button>
         )}
       </div>
+
+      <InspectionDeadlineChecker />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

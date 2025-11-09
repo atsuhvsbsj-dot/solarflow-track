@@ -71,11 +71,12 @@ export function TaskManagement({
     const task: Task = {
       id: `task_${Date.now()}`,
       customerId,
-      employeeId: selectedEmployee.id,
+      assignedTo: selectedEmployee.id,
       ...formData,
       status: "pending",
+      role: selectedEmployee.name.toLowerCase().includes("tech") ? "technician" : "other",
       createdBy: "Admin",
-      createdAt: new Date().toISOString(),
+      createdDate: new Date().toISOString().split("T")[0],
     };
 
     storage.addTask(task);

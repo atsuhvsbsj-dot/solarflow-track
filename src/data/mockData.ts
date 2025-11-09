@@ -18,15 +18,16 @@ export interface Employee {
 export interface Task {
   id: string;
   customerId: string;
-  employeeId: string;
+  assignedTo: string; // employee ID
   title: string;
   description: string;
   startDate: string;
   endDate: string;
   priority: "low" | "medium" | "high";
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "completed" | "pending_reassign";
+  role?: "technician" | "inspector" | "admin" | "other";
   createdBy: string;
-  createdAt: string;
+  createdDate: string;
 }
 
 export interface ActivityLog {
