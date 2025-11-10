@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Commissioning, Status } from "@/data/mockData";
+import { storage } from "@/lib/storage";
 import { useToast } from "@/hooks/use-toast";
 import { logActivity } from "@/utils/activityUtils";
 import { useAuth } from "@/contexts/AuthContext";
-import { Upload } from "lucide-react";
+import { Upload, Info } from "lucide-react";
 
 interface CommissioningEditModalProps {
   commissioning: Commissioning | null;
@@ -27,6 +29,50 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
       status: "pending",
     }
   );
+  const [autoFetchedData, setAutoFetchedData] = useState<{
+    customerName?: string;
+    consumerNo?: string;
+    systemCapacity?: number;
+    documentStatus?: string;
+    wiringStatus?: string;
+    qcApproved?: boolean;
+    latestInspectionDate?: string;
+  }>({});
+
+  // Auto-fetch customer and project data
+  useEffect(() => {
+    if (commissioning?.customerId) {
+      const customer = storage.getCustomer(commissioning.customerId);
+      const documents = storage.getCustomerDocuments(commissioning.customerId);
+      const wiring = storage.getCustomerWiring(commissioning.customerId);
+      const inspections = storage.getCustomerInspections(commissioning.customerId);
+
+      const docsUploaded = documents.filter((d) => d.uploaded || d.fileId).length;
+      const totalDocs = documents.length;
+      const documentStatus = `${docsUploaded}/${totalDocs} uploaded (${Math.round((docsUploaded / totalDocs) * 100)}%)`;
+
+      const approvedInspection = inspections.find((i) => i.approvalStatus === "approved");
+      const latestInspectionDate = approvedInspection?.approvalDate || inspections[0]?.inspectionDate;
+
+      setAutoFetchedData({
+        customerName: customer?.name,
+        consumerNo: customer?.consumerNumber,
+        systemCapacity: customer?.systemCapacity,
+        documentStatus,
+        wiringStatus: wiring?.status || "pending",
+        qcApproved: !!approvedInspection,
+        latestInspectionDate,
+      });
+
+      // Auto-mark subsidy received if QC approved and commissioning completed
+      if (approvedInspection && commissioning.status === "completed" && !commissioning.subsidyReceivedDate) {
+        setFormData({
+          ...commissioning,
+          subsidyReceivedDate: new Date().toISOString().split("T")[0],
+        });
+      }
+    }
+  }, [commissioning]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,6 +119,52 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
           <DialogTitle>Edit Commissioning Details</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {/* Auto-Fetched Project Summary */}
+          {autoFetchedData.customerName && (
+            <Alert className="bg-primary/5 border-primary/20">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-semibold">Customer:</span> {autoFetchedData.customerName}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Consumer No:</span> {autoFetchedData.consumerNo}
+                  </div>
+                  <div>
+                    <span className="font-semibold">System Capacity:</span> {autoFetchedData.systemCapacity} kWp
+                  </div>
+                  <div>
+                    <span className="font-semibold">Documents:</span> {autoFetchedData.documentStatus}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Wiring:</span>{" "}
+                    <span
+                      className={
+                        autoFetchedData.wiringStatus === "completed"
+                          ? "text-success font-semibold"
+                          : "text-warning"
+                      }
+                    >
+                      {autoFetchedData.wiringStatus}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">QC Approved:</span>{" "}
+                    <span className={autoFetchedData.qcApproved ? "text-success font-semibold" : "text-destructive"}>
+                      {autoFetchedData.qcApproved ? "✓ Yes" : "✗ No"}
+                    </span>
+                  </div>
+                  {autoFetchedData.latestInspectionDate && (
+                    <div className="col-span-2">
+                      <span className="font-semibold">Latest Inspection:</span> {autoFetchedData.latestInspectionDate}
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="status">Status</Label>
             <Select
@@ -113,7 +205,12 @@ export const CommissioningEditModal = ({ commissioning, open, onOpenChange, onSa
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="subsidyReceivedDate">Subsidy Received Date</Label>
+            <Label htmlFor="subsidyReceivedDate">
+              Subsidy Received Date
+              {autoFetchedData.qcApproved && formData.status === "completed" && (
+                <span className="text-xs text-success ml-2">(Auto-marked after QC approval)</span>
+              )}
+            </Label>
             <Input
               id="subsidyReceivedDate"
               type="date"

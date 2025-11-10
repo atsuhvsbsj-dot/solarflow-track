@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WiringDetails, Status } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { logActivity } from "@/utils/activityUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserCheck } from "lucide-react";
 
 interface WiringEditModalProps {
   wiring: WiringDetails | null;
@@ -53,13 +55,33 @@ export const WiringEditModal = ({ wiring, open, onOpenChange, onSave }: WiringEd
           <DialogTitle>Edit Wiring Details</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {formData.technicianId && (
+            <Alert className="bg-primary/10 border-primary/20">
+              <UserCheck className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-semibold">Auto-assigned from Employee Task</span>
+                <p className="text-xs mt-1">
+                  This technician was automatically linked when assigned to the customer.
+                  Changes to dates will sync with the task.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="technicianName">Technician Name</Label>
+              <Label htmlFor="technicianName">
+                Technician Name
+                {formData.technicianId && (
+                  <span className="text-xs text-muted-foreground ml-2">(Auto-filled)</span>
+                )}
+              </Label>
               <Input
                 id="technicianName"
                 value={formData.technicianName || ""}
                 onChange={(e) => setFormData({ ...formData, technicianName: e.target.value })}
+                disabled={!!formData.technicianId}
+                className={formData.technicianId ? "bg-muted" : ""}
               />
             </div>
 
@@ -83,7 +105,12 @@ export const WiringEditModal = ({ wiring, open, onOpenChange, onSave }: WiringEd
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">
+                Start Date
+                {formData.technicianId && (
+                  <span className="text-xs text-muted-foreground ml-2">(Synced with task)</span>
+                )}
+              </Label>
               <Input
                 id="startDate"
                 type="date"
@@ -93,7 +120,12 @@ export const WiringEditModal = ({ wiring, open, onOpenChange, onSave }: WiringEd
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">
+                End Date
+                {formData.technicianId && (
+                  <span className="text-xs text-muted-foreground ml-2">(Synced with task)</span>
+                )}
+              </Label>
               <Input
                 id="endDate"
                 type="date"

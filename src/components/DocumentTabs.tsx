@@ -174,6 +174,7 @@ export function DocumentTabs({ documents, onDocumentUpdate, onBulkUpload }: Docu
                   <TableHeader>
                     <TableRow>
                       <TableHead>Document Name</TableHead>
+                      <TableHead>Document Number</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Remark</TableHead>
                       <TableHead className="text-right">Action</TableHead>
@@ -187,6 +188,13 @@ export function DocumentTabs({ documents, onDocumentUpdate, onBulkUpload }: Docu
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             {doc.name}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {doc.documentNumber ? (
+                            <code className="px-2 py-1 bg-muted rounded text-xs">{doc.documentNumber}</code>
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">Not set</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-destructive/10 text-destructive">
@@ -226,6 +234,7 @@ export function DocumentTabs({ documents, onDocumentUpdate, onBulkUpload }: Docu
                   <TableHeader>
                     <TableRow>
                       <TableHead>Document Name</TableHead>
+                      <TableHead>Document Number</TableHead>
                       <TableHead>Upload Date</TableHead>
                       <TableHead>Uploaded By</TableHead>
                       <TableHead>Status</TableHead>
@@ -248,6 +257,15 @@ export function DocumentTabs({ documents, onDocumentUpdate, onBulkUpload }: Docu
                                 <Badge className="bg-blue-500 text-white text-xs">✓</Badge>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {doc.documentNumber ? (
+                              <code className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-semibold">
+                                {doc.documentNumber}
+                              </code>
+                            ) : (
+                              <span className="text-muted-foreground text-xs italic">Not provided</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">
                             {doc.uploadDate || "-"}

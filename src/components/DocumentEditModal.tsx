@@ -13,6 +13,27 @@ import { logActivity } from "@/utils/activityUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { autoDetectDocumentStatus } from "@/utils/progressUtils";
 
+// Validation functions for document numbers
+const validateDocumentNumber = (docName: string, value: string): { valid: boolean; error?: string } => {
+  if (!value) return { valid: true }; // Optional field
+
+  if (docName.toLowerCase().includes("aadhaar")) {
+    // Aadhaar: 12 digits only
+    const aadhaarRegex = /^\d{12}$/;
+    if (!aadhaarRegex.test(value.replace(/\s/g, ""))) {
+      return { valid: false, error: "Aadhaar must be 12 digits" };
+    }
+  } else if (docName.toLowerCase().includes("light bill")) {
+    // Light Bill: alphanumeric
+    const lightBillRegex = /^[a-zA-Z0-9\-\/]+$/;
+    if (!lightBillRegex.test(value)) {
+      return { valid: false, error: "Light Bill number must be alphanumeric" };
+    }
+  }
+  // Other documents: free text allowed
+  return { valid: true };
+};
+
 interface DocumentEditModalProps {
   document: Document | null;
   open: boolean;
@@ -33,6 +54,7 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
     }
   );
   const [manualStatusOverride, setManualStatusOverride] = useState(false);
+  const [docNumberError, setDocNumberError] = useState<string>("");
 
   // Auto-detect status when file is uploaded or verified changes
   useEffect(() => {
@@ -64,7 +86,30 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
     });
   };
 
+  const handleDocumentNumberChange = (value: string) => {
+    const validation = validateDocumentNumber(formData.name, value);
+    if (!validation.valid) {
+      setDocNumberError(validation.error || "Invalid format");
+    } else {
+      setDocNumberError("");
+    }
+    setFormData({ ...formData, documentNumber: value });
+  };
+
   const handleSave = () => {
+    // Validate document number before saving
+    if (formData.documentNumber) {
+      const validation = validateDocumentNumber(formData.name, formData.documentNumber);
+      if (!validation.valid) {
+        toast({
+          title: "Validation Error",
+          description: validation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const updatedDoc = {
       ...formData,
       doneBy: user?.username || "Admin",
@@ -77,7 +122,7 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
       user?.username || "admin",
       formData.customerId,
       "Documents",
-      `Updated ${formData.name} - Status: ${formData.status}`
+      `Updated ${formData.name} - Status: ${formData.status}${formData.documentNumber ? ` (Doc #: ${formData.documentNumber})` : ""}`
     );
 
     toast({
@@ -95,6 +140,35 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
           <DialogTitle>Edit Document - {formData.name}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          {/* Document Number Field */}
+          <div className="grid gap-2">
+            <Label htmlFor="documentNumber">
+              Document Number
+              <span className="text-xs text-muted-foreground ml-2">
+                (Enter ID before uploading)
+              </span>
+            </Label>
+            <Input
+              id="documentNumber"
+              value={formData.documentNumber || ""}
+              onChange={(e) => handleDocumentNumberChange(e.target.value)}
+              placeholder={
+                formData.name.toLowerCase().includes("aadhaar")
+                  ? "e.g., 1234-5678-9876"
+                  : formData.name.toLowerCase().includes("light bill")
+                  ? "e.g., MSEDCL-5678"
+                  : "Enter document ID/number"
+              }
+              className={docNumberError ? "border-destructive" : ""}
+            />
+            {docNumberError && (
+              <p className="text-xs text-destructive">{docNumberError}</p>
+            )}
+            {formData.name.toLowerCase().includes("aadhaar") && (
+              <p className="text-xs text-muted-foreground">Format: 12 digits (e.g., 123456789012)</p>
+            )}
+          </div>
+
           {/* File Upload */}
           <div className="grid gap-2">
             <Label>Upload Document</Label>

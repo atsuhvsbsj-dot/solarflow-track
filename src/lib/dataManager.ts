@@ -245,7 +245,45 @@ class DataManager {
     userName: string,
     userId: string
   ): void {
+    const oldWiring = storage.getCustomerWiring(customerId);
     storage.updateWiring(customerId, wiring);
+
+    // Auto-update checklist when wiring status changes
+    if (oldWiring && oldWiring.status !== wiring.status) {
+      const checklist = storage.getCustomerChecklist(customerId);
+      const wiringChecklistItem = checklist.find((item) =>
+        item.task.toLowerCase().includes("wiring") ||
+        item.task.toLowerCase().includes("installation")
+      );
+
+      if (wiringChecklistItem) {
+        const updatedChecklistItem: ChecklistItem = {
+          ...wiringChecklistItem,
+          status: wiring.status,
+          doneBy: wiring.technicianName || userName,
+          assignedEmployeeName: wiring.technicianName,
+          assignedEmployeeId: wiring.technicianId,
+          date: wiring.status === "completed" ? new Date().toISOString().split("T")[0] : wiringChecklistItem.date,
+        };
+        storage.updateChecklistItem(updatedChecklistItem);
+
+        // Log checklist auto-update
+        this.logActivity({
+          id: `act_${Date.now()}_checklist`,
+          user: "System",
+          userId: "system",
+          customerId,
+          section: "Checklist",
+          action: `Auto-updated ${wiringChecklistItem.task} to ${wiring.status} (from Wiring section)`,
+          date: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Auto-update inspection QC data when wiring is completed
+    if (wiring.status === "completed" && oldWiring?.status !== "completed") {
+      this.autoUpdateInspectionQC(customerId, "wiring", userName, userId);
+    }
 
     // Recalculate progress
     this.recalculateProgress(customerId);
@@ -280,6 +318,19 @@ class DataManager {
     // Lock/unlock dependent sections
     lockDependentSections(inspection.customerId, "inspection");
 
+    // If approved, unlock commissioning
+    if (inspection.approvalStatus === "approved") {
+      this.logActivity({
+        id: `act_${Date.now()}_approved`,
+        user: userName,
+        userId,
+        customerId: inspection.customerId,
+        section: "Inspection",
+        action: `QC Approved by ${inspection.approvedBy} - ${inspection.document}`,
+        date: new Date().toISOString(),
+      });
+    }
+
     // Log activity
     this.logActivity({
       id: `act_${Date.now()}`,
@@ -290,6 +341,71 @@ class DataManager {
       action: `${inspection.approved ? "Approved" : "Updated"} ${inspection.document}`,
       date: new Date().toISOString(),
     });
+  }
+
+  // Auto-update inspection QC when documents/wiring/completion report changes
+  autoUpdateInspectionQC(
+    customerId: string,
+    sourceSection: "documents" | "wiring" | "completion",
+    userName: string,
+    userId: string
+  ): void {
+    const inspections = storage.getCustomerInspections(customerId);
+    
+    if (sourceSection === "documents") {
+      const documents = storage.getCustomerDocuments(customerId);
+      const allDocsUploaded = documents.every((d) => d.uploaded || d.fileId);
+
+      if (allDocsUploaded) {
+        inspections.forEach((insp) => {
+          if (!insp.submitted) {
+            storage.updateInspection({
+              ...insp,
+              submitted: true,
+              date: new Date().toISOString().split("T")[0],
+            });
+          }
+        });
+
+        this.logActivity({
+          id: `act_${Date.now()}_auto_insp`,
+          user: "System",
+          userId: "system",
+          customerId,
+          section: "Inspection",
+          action: "Auto-updated: All documents uploaded, marked as submitted",
+          date: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (sourceSection === "wiring") {
+      const wiring = storage.getCustomerWiring(customerId);
+      if (wiring?.status === "completed") {
+        const wiringInspection = inspections.find((i) => 
+          i.document.toLowerCase().includes("wiring") || i.document.toLowerCase().includes("installation")
+        );
+
+        if (wiringInspection && wiringInspection.status !== "completed") {
+          storage.updateInspection({
+            ...wiringInspection,
+            status: "in_progress" as Status,
+            qcName: userName,
+            inspectionDate: new Date().toISOString().split("T")[0],
+          });
+
+          this.logActivity({
+            id: `act_${Date.now()}_auto_insp_wiring`,
+            user: "System",
+            userId: "system",
+            customerId,
+            section: "Inspection",
+            action: "Auto-updated: Wiring completed, inspection ready for QC",
+            date: new Date().toISOString(),
+          });
+        }
+      }
+    }
   }
 
   // ==================== COMMISSIONING OPERATIONS ====================
@@ -449,10 +565,28 @@ class DataManager {
         storage.updateWiring(task.customerId, {
           ...wiring,
           technicianName: employee.name,
+          technicianId: employee.id,
           startDate: task.startDate,
           endDate: task.endDate,
           status: "in_progress" as Status,
         });
+
+        // Also update checklist to show assigned employee
+        const checklist = storage.getCustomerChecklist(task.customerId);
+        const wiringChecklistItem = checklist.find((item) =>
+          item.task.toLowerCase().includes("wiring") ||
+          item.task.toLowerCase().includes("installation")
+        );
+
+        if (wiringChecklistItem) {
+          storage.updateChecklistItem({
+            ...wiringChecklistItem,
+            assignedEmployeeId: employee.id,
+            assignedEmployeeName: employee.name,
+            startDate: task.startDate,
+            endDate: task.endDate,
+          });
+        }
       }
     }
 
@@ -477,14 +611,31 @@ class DataManager {
     storage.updateTask(updatedTask);
 
     // Update wiring section if technician task dates change
-    if (task.role === "technician" && (updates.startDate || updates.endDate)) {
+    if (task.role === "technician" && (updates.startDate || updates.endDate || updates.status)) {
       const wiring = storage.getCustomerWiring(task.customerId);
       if (wiring) {
         storage.updateWiring(task.customerId, {
           ...wiring,
           startDate: updates.startDate || wiring.startDate,
           endDate: updates.endDate || wiring.endDate,
+          status: updates.status === "completed" ? "completed" as Status : wiring.status,
         });
+
+        // Auto-update checklist when task status changes
+        const checklist = storage.getCustomerChecklist(task.customerId);
+        const wiringChecklistItem = checklist.find((item) =>
+          item.task.toLowerCase().includes("wiring") ||
+          item.task.toLowerCase().includes("installation")
+        );
+
+        if (wiringChecklistItem && updates.status) {
+          storage.updateChecklistItem({
+            ...wiringChecklistItem,
+            status: updates.status === "completed" ? "completed" as Status : wiringChecklistItem.status,
+            doneBy: updates.status === "completed" ? wiring.technicianName || userName : wiringChecklistItem.doneBy,
+            date: updates.status === "completed" ? new Date().toISOString().split("T")[0] : wiringChecklistItem.date,
+          });
+        }
       }
     }
 

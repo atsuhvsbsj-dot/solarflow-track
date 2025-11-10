@@ -58,6 +58,7 @@ export interface Document {
   id: string;
   customerId: string;
   name: string;
+  documentNumber?: string; // New field for document identification
   uploaded: boolean;
   uploadDate?: string;
   notes?: string;
@@ -82,11 +83,14 @@ export interface ChecklistItem {
   date?: string;
   startDate?: string;
   endDate?: string;
+  assignedEmployeeId?: string; // Linked employee ID
+  assignedEmployeeName?: string; // For display
 }
 
 export interface WiringDetails {
   customerId: string;
   technicianName?: string;
+  technicianId?: string; // Linked employee/technician ID
   startDate?: string;
   endDate?: string;
   pvModuleNo?: string;
@@ -111,6 +115,9 @@ export interface Inspection {
   qcName?: string;
   inspectionDate?: string;
   approved: boolean;
+  approvalStatus?: "pending" | "approved" | "rejected"; // QC approval status
+  approvedBy?: string; // Who approved/rejected
+  approvalDate?: string; // When it was approved/rejected
   status: Status;
   remark?: string;
   startDate?: string;

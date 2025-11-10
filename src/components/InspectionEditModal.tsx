@@ -27,9 +27,21 @@ export const InspectionEditModal = ({ inspection, open, onOpenChange, onSave }: 
       document: "",
       submitted: false,
       approved: false,
+      approvalStatus: "pending",
       status: "pending",
     }
   );
+
+  // Handle QC approval status change
+  const handleApprovalStatusChange = (status: "pending" | "approved" | "rejected") => {
+    setFormData({
+      ...formData,
+      approvalStatus: status,
+      approved: status === "approved",
+      approvedBy: status !== "pending" ? user?.username || "Admin" : undefined,
+      approvalDate: status !== "pending" ? new Date().toISOString().split("T")[0] : undefined,
+    });
+  };
 
   const handleSave = () => {
     onSave(formData);
@@ -155,19 +167,49 @@ export const InspectionEditModal = ({ inspection, open, onOpenChange, onSave }: 
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="approved">Approved</Label>
-              <Select
-                value={formData.approved ? "yes" : "no"}
-                onValueChange={(value) => setFormData({ ...formData, approved: value === "yes" })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="date">Submission Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date || ""}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {/* QC Approval Section */}
+          <div className="border rounded-lg p-4 bg-muted/50">
+            <Label className="text-base font-semibold mb-3 block">QC Approval Status</Label>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="approvalStatus">Approval Decision (Admin Only)</Label>
+                <Select
+                  value={formData.approvalStatus || "pending"}
+                  onValueChange={handleApprovalStatusChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">⏳ Pending Review</SelectItem>
+                    <SelectItem value="approved">✅ Approved</SelectItem>
+                    <SelectItem value="rejected">❌ Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.approvalStatus !== "pending" && (
+                <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                  <div className="grid gap-2">
+                    <Label>Approved/Rejected By</Label>
+                    <Input value={formData.approvedBy || ""} disabled className="bg-background" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Approval Date</Label>
+                    <Input value={formData.approvalDate || ""} disabled className="bg-background" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
