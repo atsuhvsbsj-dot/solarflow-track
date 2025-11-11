@@ -18,6 +18,8 @@ interface FileUploadProps {
   onUploadComplete: (fileId: string) => void;
   onDelete?: () => void;
   acceptedFormats?: string;
+  disabled?: boolean;
+  disabledMessage?: string;
 }
 
 export function FileUpload({
@@ -27,6 +29,8 @@ export function FileUpload({
   onUploadComplete,
   onDelete,
   acceptedFormats = ".pdf,.jpg,.jpeg,.png,.docx",
+  disabled = false,
+  disabledMessage = "Complete required fields before uploading",
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -206,12 +210,17 @@ export function FileUpload({
       ) : (
         <div className="space-y-2">
           <label
-            htmlFor={`file-${documentId}`}
-            className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+            htmlFor={disabled ? undefined : `file-${documentId}`}
+            className={`flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg transition-colors ${
+              disabled 
+                ? "cursor-not-allowed opacity-50 bg-muted/30" 
+                : "cursor-pointer hover:bg-muted/50"
+            }`}
+            title={disabled ? disabledMessage : undefined}
           >
             <Upload className="h-4 w-4" />
             <span className="text-sm">
-              {uploading ? `Uploading... ${uploadProgress}%` : "Click to upload"}
+              {uploading ? `Uploading... ${uploadProgress}%` : disabled ? disabledMessage : "Click to upload"}
             </span>
             <Badge variant="outline" className="text-xs">
               PDF, JPG, PNG

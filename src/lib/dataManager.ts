@@ -248,8 +248,8 @@ class DataManager {
     const oldWiring = storage.getCustomerWiring(customerId);
     storage.updateWiring(customerId, wiring);
 
-    // Auto-update checklist when wiring status changes
-    if (oldWiring && oldWiring.status !== wiring.status) {
+    // When wiring is completed, auto-update checklist
+    if (wiring.status === "completed" && oldWiring?.status !== "completed") {
       const checklist = storage.getCustomerChecklist(customerId);
       const wiringChecklistItem = checklist.find((item) =>
         item.task.toLowerCase().includes("wiring") ||
@@ -257,32 +257,24 @@ class DataManager {
       );
 
       if (wiringChecklistItem) {
-        const updatedChecklistItem: ChecklistItem = {
+        storage.updateChecklistItem({
           ...wiringChecklistItem,
-          status: wiring.status,
+          status: "completed" as Status,
           doneBy: wiring.technicianName || userName,
-          assignedEmployeeName: wiring.technicianName,
-          assignedEmployeeId: wiring.technicianId,
-          date: wiring.status === "completed" ? new Date().toISOString().split("T")[0] : wiringChecklistItem.date,
-        };
-        storage.updateChecklistItem(updatedChecklistItem);
+          date: new Date().toISOString().split("T")[0],
+        });
 
-        // Log checklist auto-update
+        // Log the completion activity
         this.logActivity({
-          id: `act_${Date.now()}_checklist`,
-          user: "System",
-          userId: "system",
+          id: `act_${Date.now()}_wiring_complete`,
+          user: wiring.technicianName || userName,
+          userId: wiring.technicianId || userId,
           customerId,
-          section: "Checklist",
-          action: `Auto-updated ${wiringChecklistItem.task} to ${wiring.status} (from Wiring section)`,
+          section: "Wiring",
+          action: `Wiring completed by ${wiring.technicianName || userName}`,
           date: new Date().toISOString(),
         });
       }
-    }
-
-    // Auto-update inspection QC data when wiring is completed
-    if (wiring.status === "completed" && oldWiring?.status !== "completed") {
-      this.autoUpdateInspectionQC(customerId, "wiring", userName, userId);
     }
 
     // Recalculate progress
@@ -291,6 +283,11 @@ class DataManager {
     // Lock/unlock dependent sections
     lockDependentSections(customerId, "wiring");
 
+    // Auto-update inspection QC if applicable
+    if (wiring.status === "completed") {
+      this.autoUpdateInspectionQC(customerId, "wiring", userName, userId);
+    }
+
     // Log activity
     this.logActivity({
       id: `act_${Date.now()}`,
@@ -298,7 +295,7 @@ class DataManager {
       userId,
       customerId,
       section: "Wiring",
-      action: "Updated wiring details",
+      action: `Updated wiring details - Status: ${wiring.status}`,
       date: new Date().toISOString(),
     });
   }

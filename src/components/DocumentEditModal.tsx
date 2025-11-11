@@ -182,6 +182,11 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
           {/* File Upload */}
           <div className="grid gap-2">
             <Label>Upload Document</Label>
+            {!formData.documentNumber?.trim() && (
+              <p className="text-sm text-warning bg-warning/10 p-2 rounded-md">
+                ⚠️ Enter document number before uploading
+              </p>
+            )}
             <FileUpload
               documentId={formData.id}
               documentName={formData.name}
@@ -189,6 +194,8 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
               onUploadComplete={handleFileUpload}
               onDelete={handleFileDelete}
               acceptedFormats=".pdf,.jpg,.jpeg,.png,.docx"
+              disabled={!formData.documentNumber?.trim() || !!docNumberError}
+              disabledMessage={docNumberError || "Enter valid document number first"}
             />
           </div>
 
