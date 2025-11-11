@@ -37,7 +37,9 @@ export function calculateDocumentProgress(customerId: string): number {
     return sum + getSectionProgress(doc.status);
   }, 0);
 
-  return Math.round(totalProgress / documents.length);
+  const progress = totalProgress / documents.length;
+  // Return exact value if all complete, otherwise round down
+  return progress === 100 ? 100 : Math.floor(progress);
 }
 
 // Calculate checklist progress
@@ -49,7 +51,8 @@ export function calculateChecklistProgress(customerId: string): number {
     return sum + getSectionProgress(item.status);
   }, 0);
 
-  return Math.round(totalProgress / checklist.length);
+  const progress = totalProgress / checklist.length;
+  return progress === 100 ? 100 : Math.floor(progress);
 }
 
 // Calculate wiring progress
@@ -68,7 +71,8 @@ export function calculateInspectionProgress(customerId: string): number {
     return sum + getSectionProgress(inspection.status);
   }, 0);
 
-  return Math.round(totalProgress / inspections.length);
+  const progress = totalProgress / inspections.length;
+  return progress === 100 ? 100 : Math.floor(progress);
 }
 
 // Calculate commissioning progress
@@ -86,6 +90,16 @@ export function calculateOverallProgress(customerId: string): number {
   const inspectionProgress = calculateInspectionProgress(customerId);
   const commissioningProgress = calculateCommissioningProgress(customerId);
 
+  // Check if all sections are at 100%
+  const allComplete = 
+    documentProgress === 100 &&
+    checklistProgress === 100 &&
+    wiringProgress === 100 &&
+    inspectionProgress === 100 &&
+    commissioningProgress === 100;
+
+  if (allComplete) return 100;
+
   const weighted =
     (documentProgress * SECTION_WEIGHTS.documents +
       checklistProgress * SECTION_WEIGHTS.checklist +
@@ -94,7 +108,7 @@ export function calculateOverallProgress(customerId: string): number {
       commissioningProgress * SECTION_WEIGHTS.commissioning) /
     100;
 
-  return Math.round(weighted);
+  return Math.floor(weighted);
 }
 
 // Get customer status based on progress

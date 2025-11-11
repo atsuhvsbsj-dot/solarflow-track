@@ -97,7 +97,17 @@ export const DocumentEditModal = ({ document, open, onOpenChange, onSave }: Docu
   };
 
   const handleSave = () => {
-    // Validate document number before saving
+    // Require document number if file is uploaded
+    if (formData.uploaded && !formData.documentNumber?.trim()) {
+      toast({
+        title: "Document Number Required",
+        description: "Please enter a document number before uploading",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate document number format if provided
     if (formData.documentNumber) {
       const validation = validateDocumentNumber(formData.name, formData.documentNumber);
       if (!validation.valid) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,24 @@ export const CustomerModal = ({ open, onOpenChange, customer, onSave }: Customer
   );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Sync formData with customer prop when it changes
+  useEffect(() => {
+    if (customer) {
+      setFormData(customer);
+    } else {
+      setFormData({
+        name: "",
+        consumerNumber: "",
+        mobile: "",
+        address: "",
+        systemCapacity: 0,
+        orderAmount: 0,
+        orderDate: new Date().toISOString().split("T")[0],
+      });
+    }
+    setErrors({});
+  }, [customer, open]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
